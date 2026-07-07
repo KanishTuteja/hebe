@@ -58,6 +58,8 @@ h3{font-size:13.5px;font-weight:600;margin:0}
 .badge.coral{background:var(--coral-bg);color:var(--coral-dk)}
 .badge.gray{background:var(--card2);color:var(--text2)}
 .coach-tag{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--purple);font-weight:600}
+.coach-tag svg{width:16px;height:16px;flex-shrink:0}
+.insight svg{width:17px;height:17px;flex-shrink:0}
 button.btn{font-family:inherit;font-size:13px;border-radius:9px;padding:9px 16px;cursor:pointer;border:1px solid var(--line2);background:var(--card);color:var(--text)}
 button.btn:hover{background:var(--card2)}
 button.btn.primary{background:var(--teal-bg);color:var(--teal-dk);border-color:transparent;font-weight:600}
@@ -298,17 +300,46 @@ function windowStats(date, span){
   return st;
 }
 const clamp = (v,lo,hi)=>Math.max(lo,Math.min(hi,v));
+// Age-equivalent conversion (Gompertz): adult all-cause mortality doubles
+// ~every 8y, so Δage = ln(HR)/0.0866 = 11.55·ln(HR). Every coefficient below
+// is derived from a published all-cause-mortality meta-analysis — see
+// HEBE_ACCURACY.md for the studies, hazard ratios and the arithmetic.
 function ageAdjustments(st){
   if(!st) return { total:0, parts:[] };
   const parts = [];
-  parts.push(['Sleep', clamp((8-st.sleepH)*0.5, -1.5, 1.5)]);
-  parts.push(['Training volume', clamp(-(st.trainH/2)*2.0, -2.0, 0)]);
-  parts.push(['Strength consistency', st.liftPerWk>=3 ? -0.5 : (st.liftPerWk>=1?-0.25:0)]);
-  parts.push(['Sitting', st.sitH>8 ? clamp((st.sitH-8)*0.25,0,0.75) : 0]);
-  parts.push(['Food quality', st.foodAvg!=null ? clamp((60-st.foodAvg)*0.02, -1.0, 1.0) : 0]);
-  parts.push(['Resting HR', st.rhrAvg!=null ? clamp((st.rhrAvg-60)*0.05, -1.0, 1.0) : 0]);
-  parts.push(['Stress', st.stress>6 ? 0.5 : (st.stress>4?0.25:0)]);
-  const total = clamp(parts.reduce((a,p)=>a+p[1],0), -5, 5);
+
+  // SLEEP — optimum is 7h (not 8h). Dose-response HRs vs 7h (JAHA 2017,
+  // 1.38M people): 5h~1.04, 6h~1.01, 8h~1.07, 9h~1.21. Long sleep penalised
+  // harder than short. Ref ~6.7h (population median) offset via -0.10.
+  let sleep = (st.sleepH <= 7) ? (7-st.sleepH)*0.22 - 0.10 : (st.sleepH-7)*0.85 - 0.10;
+  parts.push(['Sleep', clamp(sleep, -0.3, 2.5)]);
+
+  // TRAINING VOLUME — cardiorespiratory fitness / activity. ~13% lower
+  // mortality per MET (HR0.87 → -1.6y/MET); benefit plateaus past guidelines.
+  // Bonus-only, ref = meets guideline (~0.7h/day activity).
+  parts.push(['Training volume', -Math.min(2.2, Math.max(0, st.trainH-0.7)*1.3)]);
+
+  // STRENGTH — resistance training's effect INDEPENDENT of aerobic: ≥2×/wk
+  // HR0.92 → ~-1.0y (joint-effects cohort). Bonus-only.
+  parts.push(['Strength', st.liftPerWk>=3 ? -0.75 : (st.liftPerWk>=1.5 ? -0.5 : (st.liftPerWk>=0.5?-0.25:0))]);
+
+  // SITTING — HR1.03 per hour above ~8h threshold (→ +0.34y/h), strongly
+  // attenuated in the highly active (JACC 2019). Ref 8h.
+  parts.push(['Sitting', clamp(st.sitH>8 ? (st.sitH-8)*0.30*(st.trainH>1?0.6:1) : 0, 0, 1.2)]);
+
+  // FOOD QUALITY — highest-vs-lowest ultra-processed intake HR~1.18
+  // (→ ~1.9y full swing). Ingredient score 0-100 mapped around ref 65.
+  parts.push(['Food quality', st.foodAvg!=null ? clamp((65-st.foodAvg)*0.03, -1.5, 1.5) : 0]);
+
+  // RESTING HR — HR1.09 per +10bpm (→ ~+1.0y/10bpm, 1.25M people). Ref 65bpm.
+  parts.push(['Resting HR', st.rhrAvg!=null ? clamp((st.rhrAvg-65)*0.10, -1.5, 1.5) : 0]);
+
+  // STRESS — chronic psychological stress ~HR1.1-1.2; modest + self-reported.
+  parts.push(['Stress', st.stress>6 ? 0.6 : (st.stress>4?0.3:0)]);
+
+  // Total capped ±6y: lifestyle extremes span ~12y of life expectancy
+  // (Li et al., Circulation 2018), so ±6 around the mean is the honest ceiling.
+  const total = clamp(parts.reduce((a,p)=>a+p[1],0), -6, 6);
   return { total, parts };
 }
 function computeHebeAge(date){
@@ -613,6 +644,13 @@ async function pullCloud(){
   const meta = await col.get();
   if(meta.exists){ const md=meta.data();
     if(md.templates && (!localStorage.getItem('hebe_templates'))) S.templates=md.templates;
+    if(md.protocols && (!localStorage.getItem('hebe_protocols'))) S.protocols=md.protocols;
+    // pull synced settings (API key, model, targets, dob, name) — never overwrite
+    // this device's own Firebase config
+    if(md.settings){ const s=md.settings; delete s.fbConfig;
+      ['apiKey','model','proteinTarget','dob','name'].forEach(k=>{ if(s[k]!=null && !S.settings[k]) S.settings[k]=s[k]; });
+      if(s.apiKey) S.settings.apiKey = s.apiKey;
+    }
   }
   Object.keys(S.days).forEach(k=>{ if(S.days[k].updatedAt>0) cloudPush(k); });
   if(pulled){ persist(); render(); }
@@ -625,7 +663,10 @@ function cloudPush(date){
     try{
       const col=S.fb.db.collection('users').doc(S.fb.user.uid);
       for(const dt of pushQ) await col.collection('days').doc(dt).set(S.days[dt],{merge:true});
-      await col.set({templates:S.templates, protocols:S.protocols},{merge:true});
+      // sync settings too (so API key + prefs follow you to every device),
+      // minus fbConfig which is device-local by design
+      const syncSettings = Object.assign({}, S.settings); delete syncSettings.fbConfig;
+      await col.set({templates:S.templates, protocols:S.protocols, settings:syncSettings},{merge:true});
       pushQ.clear(); setSync('synced');
     }catch(e){ console.warn(e); setSync('error'); }
   },900);
