@@ -479,15 +479,16 @@ function heuristicScore(name, ingredients, product){
   if(g) score = ({a:90,b:75,c:60,d:42,e:25})[g]||55; else score = ingredients?70:55;
   score -= flagged.length*6;
   if(product&&Number(product.nova_group)===4) score -= 10;
-  return { score:clamp(Math.round(score),5,98), flagged, summary: flagged.length? flagged.length+' flagged ingredient(s).':'No red flags found.', src:'built-in' };
+  const novaG = product&&Number(product.nova_group)||null;
+  return { score:clamp(Math.round(score),5,98), flagged, summary: flagged.length? flagged.length+' flagged ingredient(s).':'No red flags found.', nova:novaG, confidence: g?'med':'low', basis: g?('Nutri-Score '+g.toUpperCase()+(novaG?' · NOVA'+novaG:'')):'name-based estimate', src:'built-in' };
 }
 async function scoreFood(name, ingredients, product){
   if(!S.settings.apiKey) return heuristicScore(name, ingredients, product);
   try{
     const nutr = product&&product.nutriments ? JSON.stringify({kcal:product.nutriments['energy-kcal_100g'],sugar:product.nutriments.sugars_100g,protein:product.nutriments.proteins_100g,satfat:product.nutriments['saturated-fat_100g']}) : 'unknown';
-    const txt = await claude([{role:'user',content:'Score this food 0-100 for ingredient quality (100 = whole unprocessed longevity food, <40 = ultra-processed junk). Flag each problematic ingredient with a short reason (seed oils, sweeteners, added sugar, "natural flavors", preservatives, dyes, nitrites...).\nFood: '+name+'\nIngredients: '+(ingredients||'not listed - estimate from the name')+'\nNutrition/100g: '+nutr+'\nONLY valid JSON: {"score":<int>,"flagged":[{"ingredient":"...","reason":"..."}],"summary":"<one line>"}'}], 'You are a strict ingredient-quality nutritionist focused on longevity.', 600);
+    const txt = await claude([{role:'user',content:'Score this food 0-100 for ingredient quality relative to longevity/all-cause-mortality evidence.\nGround the score in established frameworks, in this order:\n1) NOVA processing class (1=unprocessed → 4=ultra-processed; UPF carries HR~1.15-1.21 for all-cause mortality, dose-response meta-analyses).\n2) Nutri-Score / nutrient profile (sat fat, added sugar, sodium, fibre, protein) from the /100g nutrition when present.\n3) Specific evidence-flagged ingredients (industrial seed oils, added/free sugars, sweeteners, "natural flavors", nitrites/nitrates, emulsifiers, dyes).\nAnchoring: NOVA1 whole food ~85-98, NOVA2 ~70-84, NOVA3 ~50-69, NOVA4 ultra-processed ~15-49.\nReport how confident you are: "high" = ingredients listed or a branded product with nutrition data; "med" = generic whole food judged from name; "low" = ambiguous/mixed dish estimated from name alone.\nState the single most important basis in one short phrase.\nFood: '+name+'\nIngredients: '+(ingredients||'NOT LISTED - infer NOVA class and nutrients from the name, lower your confidence')+'\nNutrition/100g: '+nutr+'\nONLY valid JSON: {"score":<int>,"nova":<1-4 or null>,"confidence":"high|med|low","basis":"<short phrase, e.g. NOVA4 ultra-processed + added sugar>","flagged":[{"ingredient":"...","reason":"..."}],"summary":"<one line>"}'}], 'You are a nutrition scientist scoring foods for longevity using NOVA classification, Nutri-Score nutrient profiling, and all-cause-mortality evidence for ultra-processed foods. Score on the evidence; never inflate certainty. When ingredients are unknown you MUST lower your confidence rather than guess precisely.', 700);
     const p = extractJSON(txt);
-    return { score:clamp(Math.round(p.score),0,100), flagged:p.flagged||[], summary:p.summary||'', src:'ai' };
+    return { score:clamp(Math.round(p.score),0,100), flagged:p.flagged||[], summary:p.summary||'', nova:(p.nova!=null?Number(p.nova):null), confidence:p.confidence||'med', basis:p.basis||'', src:'ai' };
   }catch(e){ console.warn(e); toast('AI scoring failed — used built-in scorer'); return heuristicScore(name, ingredients, product); }
 }
 async function addFood(name, product){
@@ -495,7 +496,7 @@ async function addFood(name, product){
   const res = await scoreFood(name, product?product.ingredients_text:'', product);
   const n = product&&product.nutriments||{};
   const d = ensureDay(S.date);
-  d.foods.push({ name, barcode:product?product.code:null, score:res.score, flagged:res.flagged.map(f=>f.ingredient), details:res.flagged, summary:res.summary, src:(product?'off+':'')+res.src, kcal:n['energy-kcal_100g']??null, protein:n.proteins_100g??null, sugar:n.sugars_100g??null, ts:Date.now() });
+  d.foods.push({ name, barcode:product?product.code:null, score:res.score, flagged:res.flagged.map(f=>f.ingredient), details:res.flagged, summary:res.summary, nova:res.nova??null, confidence:res.confidence||'med', basis:res.basis||'', src:(product?'off+':'')+res.src, kcal:n['energy-kcal_100g']??null, protein:n.proteins_100g??null, sugar:n.sugars_100g??null, ts:Date.now() });
   saveDay(S.date); render();
   toast('Added — '+res.score+'/100');
 }
@@ -520,9 +521,14 @@ async function applyCheckin(asPlanned){
       if(S.settings.apiKey){
         toast('Parsing your day…');
         try{
-          const out = await claude([{role:'user',content:'Day record fields: '+JSON.stringify(d.metrics)+' (sleepH hours, sleepQ 1-10, workoutDone bool, workoutMin, rideH hours, sitH, sunMin, protein g, water L, supplements bool, mood 1-10, energy 1-10, stress 1-10, fastingH). The athlete describes deviations from the plan: "'+text+'". Return ONLY JSON {"changes":{<field>:<new value>,...},"note":"<short human summary>"} with only fields that should change.'}], 'You convert natural language into structured day-log changes. Be conservative: only change what the text clearly implies.', 400);
+          const out = await claude([{role:'user',content:'Current day record: '+JSON.stringify(d.metrics)+' (sleepH hours, sleepQ 1-10, workoutDone bool, workoutMin minutes, rideH hours, sitH hours, sunMin minutes, protein grams eaten so far today, water litres, supplements bool, mood 1-10, energy 1-10, stress 1-10, fastingH hours). The user describes what actually happened: "'+text+'".\nRules:\n1) If foods are mentioned, estimate their nutrition using standard USDA/reference values (e.g. 1 large egg ≈ 6.3g protein, 1 tbsp natural almond butter ≈ 3.4g protein, 1 scoop whey ≈ 24g, 100g cooked chicken breast ≈ 31g) and ADD to the current protein number — return the new TOTAL, never the delta.\n2) "2 more eggs" / "extra" = ADDITION to what is already recorded.\n3) Same add-to-current logic for water, workoutMin, rideH when implied.\n4) Every value must be a plain number, or true/false for bools.\n5) Only include fields the text actually affects.\n6) Rate confidence: "high" = specific quantities + common foods; "med" = some estimation of portion; "low" = vague ("a lot", unnamed dish).\nReturn ONLY JSON {"changes":{<field>:<number>,...},"note":"<one line showing the math with sources, e.g. +29g protein (5 tbsp almond butter ~17g USDA + 2 large eggs ~12.6g) → 167g total","confidence":"high|med|low"}'}], 'You convert natural-language day descriptions into structured day-log changes using standard USDA/reference nutrition values. When food is mentioned you MUST update protein (and water for drinks) with accurate estimates ADDED to current values, and show the per-item math in the note. Be accurate and cite your basis; lower confidence rather than fake precision on vague inputs.', 550);
           const p = extractJSON(out);
-          if(p&&p.changes) Object.entries(p.changes).forEach(([k,v])=>{ if(METRIC_FIELDS.includes(k)) d.metrics[k]=v; });
+          if(p&&p.note&&p.confidence) p.note += ' ['+p.confidence+' confidence]';
+          if(p&&p.changes) Object.entries(p.changes).forEach(([k,v])=>{
+            if(!METRIC_FIELDS.includes(k)) return;
+            if(k==='workoutDone'||k==='supplements'){ d.metrics[k]=!!v; }
+            else { const n=Number(v); if(!isNaN(n)) d.metrics[k]=n; }
+          });
           if(p&&p.note) d.notes = (d.notes?d.notes+' · ':'')+p.note;
           toast('Day updated from your note');
         }catch(e){ console.warn(e); d.notes=(d.notes?d.notes+' · ':'')+text; toast('Saved as note (AI parse failed)'); }
@@ -728,7 +734,8 @@ function renderHome(){
   h += '</div>';
 
   h += '<div class="grid4 mt fade">';
-  h += '<div class="tile"><div class="k">Sleep</div><div class="v">'+m.sleepH+' h</div><div class="s" style="color:'+(m.sleepH>=7.5?'var(--teal)':'var(--amber)')+'">'+(m.sleepH>=8?'on target':(8-m.sleepH).toFixed(1)+' short of 8h')+'</div></div>';
+  const sleepOff = Math.abs(m.sleepH-7);
+  h += '<div class="tile"><div class="k">Sleep</div><div class="v">'+m.sleepH+' h</div><div class="s" style="color:'+(sleepOff<=0.5?'var(--teal)':'var(--amber)')+'">'+(sleepOff<=0.5?'optimal (~7h)':(m.sleepH<7?(7-m.sleepH).toFixed(1)+'h under 7h':(m.sleepH-7).toFixed(1)+'h over 7h'))+'</div></div>';
   h += '<div class="tile"><div class="k">Training load</div><div class="v">'+((m.rideH+(m.workoutMin||0)/60)).toFixed(1)+' h</div><div class="s">'+(m.workoutDone?'ride + '+(d.workoutType||'lift'):'ride only')+'</div></div>';
   h += '<div class="tile"><div class="k">Protein</div><div class="v">'+m.protein+' g</div><div class="s" style="color:'+(m.protein>=S.settings.proteinTarget?'var(--teal)':'var(--amber)')+'">'+(m.protein>=S.settings.proteinTarget?'on target':'target '+S.settings.proteinTarget+'g')+'</div></div>';
   h += '<div class="tile"><div class="k">Fasting window</div><div class="v">'+m.fastingH+' h</div><div class="s">'+(d.protocolId?'protocol fast day':'daily rhythm')+'</div></div>';
@@ -834,6 +841,7 @@ function renderFuel(){
     h += '<div class="foodrow"><div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><div style="min-width:0"><div style="font-weight:600;font-size:13.5px">'+esc(f.name)+'</div><div class="sub" style="font-size:11px">'+(f.kcal!=null?Math.round(f.kcal)+' kcal/100g · ':'')+(f.protein!=null?Math.round(f.protein)+'g prot · ':'')+esc(f.src||'')+'</div></div>'
       + '<div style="display:flex;gap:8px;align-items:center;flex-shrink:0"><span class="scorepill" style="background:'+scoreCol(f.score)+'22;color:'+scoreCol(f.score)+'">'+f.score+'</span><button class="btn" data-delfood="'+i+'" style="padding:4px 9px;font-size:12px">✕</button></div></div>';
     if((f.details||[]).length) h += '<div style="margin-top:6px">'+f.details.map(x=>'<span class="flag" title="'+esc(x.reason)+'">'+esc(x.ingredient)+'</span>').join('')+'</div>';
+    if(f.basis||f.confidence){ const cc={high:'var(--teal)',med:'var(--amber)',low:'var(--text3)'}[f.confidence]||'var(--text3)'; h += '<div class="sub" style="font-size:10.5px;margin-top:5px;color:var(--text3)">'+(f.basis?esc(f.basis):'')+(f.confidence?' <span style="color:'+cc+'">· '+f.confidence+' confidence</span>':'')+'</div>'; }
     h += '</div>';
   });
   h += '</div></div>';
