@@ -452,7 +452,14 @@ async function claude(messages, system, maxTokens){
   });
   if(!r.ok) throw new Error('API '+r.status);
   const j = await r.json();
-  return (j.content&&j.content[0]&&j.content[0].text)||'';
+  return textFromContent(j);
+}
+// Pull the first TEXT block. claude-sonnet-5 can return a leading
+// "thinking" block, so content[0] is not always the answer.
+function textFromContent(j){
+  const blocks = (j&&j.content)||[];
+  const t = blocks.find(b=>b&&b.type==='text'&&b.text);
+  return t ? t.text : ((blocks[0]&&blocks[0].text)||'');
 }
 function extractJSON(txt){
   const m = String(txt).match(/\{[\s\S]*\}/);
@@ -938,7 +945,7 @@ async function scoreSkinPhoto(file){
     });
     if(!r.ok) throw new Error('API '+r.status);
     const j = await r.json();
-    const p = extractJSON((j.content&&j.content[0]&&j.content[0].text)||'');
+    const p = extractJSON(textFromContent(j));
     const d = ensureDay(S.date);
     d.skin.score = clamp(Math.round(p.score),1,10); d.skin.notes = p.notes||'';
     saveDay(S.date); render(); toast('Skin read: '+d.skin.score+'/10');
