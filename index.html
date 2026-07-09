@@ -781,9 +781,27 @@ async function pullCloud(){
     }
   }
   Object.keys(S.days).forEach(k=>{ if(S.days[k].updatedAt>0) cloudPush(k); });
-  if(pulled){ persist(); render(); }
+  // Always persist + re-render: settings (API key, model, targets, dob, name)
+  // may have been pulled even when no new day docs arrived. Without this the
+  // synced key lived only in memory and was lost on reload → re-asked per device.
+  persist(); render();
 }
-const pushQ=new Set(); let pushT=null;
+const pushQ=new Set(); let pushT=null, metaT=null;
+// Push settings/templates/protocols only (no day docs). Called whenever a
+// setting changes so the API key + prefs reach Firestore immediately, not just
+// when a day happens to be logged. Uses its own debounce timer.
+function pushSettings(){
+  if(!S.fb.user||!S.fb.db) return;
+  clearTimeout(metaT); setSync('syncing');
+  metaT=setTimeout(async()=>{
+    try{
+      const col=S.fb.db.collection('users').doc(S.fb.user.uid);
+      const syncSettings=Object.assign({},S.settings); delete syncSettings.fbConfig;
+      await col.set({templates:S.templates, protocols:S.protocols, settings:syncSettings},{merge:true});
+      setSync('synced');
+    }catch(e){ console.warn(e); setSync('error'); }
+  },800);
+}
 function cloudPush(date){
   if(!S.fb.user||!S.fb.db) return;
   pushQ.add(date); clearTimeout(pushT); setSync('syncing');
@@ -1190,7 +1208,7 @@ function renderSetup(){
   h += '<div class="grid2eq fade">';
   h += '<div class="card"><h3>You</h3><div class="frow mt"><div><label class="f">Name</label><input id="setName" value="'+esc(s.name)+'"></div><div><label class="f">Birth date</label><input type="date" id="setDob" value="'+esc(s.dob)+'"></div></div>'
     + '<div class="frow mt"><div><label class="f">Protein target (g)</label><input type="number" id="setProt" value="'+s.proteinTarget+'"></div><div><label class="f">Theme</label><select id="setTheme"><option value="light"'+(s.theme==='light'?' selected':'')+'>Light</option><option value="dark"'+(s.theme==='dark'?' selected':'')+'>Dark</option></select></div></div></div>';
-  h += '<div class="card"><h3>Claude AI</h3><div class="mt"><label class="f">API key (stored on this device only)</label><input type="password" id="setKey" value="'+esc(s.apiKey)+'"></div>'
+  h += '<div class="card"><h3>Claude AI</h3><div class="mt"><label class="f">API key (syncs to your signed-in devices)</label><input type="password" id="setKey" value="'+esc(s.apiKey)+'"></div>'
     + '<div class="mt"><label class="f">Model</label><input id="setModel" value="'+esc(s.model)+'"></div>'
     + '<div class="sub mt" style="color:var(--amber)">If you deploy to public GitHub Pages, remove the key from the file/Setup first — anyone can read it there. Local use is fine.</div></div>';
   h += '</div>';
@@ -1295,11 +1313,11 @@ document.addEventListener('input', e=>{
   const el = e.target;
   if(el.dataset&&el.dataset.tpl){ S.templates[el.dataset.tpl][el.dataset.fld]=+el.value; clearTimeout(saveTimer); saveTimer=setTimeout(persist,400); return; }
   switch(el.id){
-    case 'setName': S.settings.name=el.value; persist(); break;
-    case 'setDob': if(el.value) S.settings.dob=el.value; persist(); break;
-    case 'setProt': S.settings.proteinTarget=+el.value||135; persist(); break;
-    case 'setKey': S.settings.apiKey=el.value.trim(); persist(); break;
-    case 'setModel': S.settings.model=el.value.trim(); persist(); break;
+    case 'setName': S.settings.name=el.value; persist(); pushSettings(); break;
+    case 'setDob': if(el.value) S.settings.dob=el.value; persist(); pushSettings(); break;
+    case 'setProt': S.settings.proteinTarget=+el.value||135; persist(); pushSettings(); break;
+    case 'setKey': S.settings.apiKey=el.value.trim(); persist(); pushSettings(); break;
+    case 'setModel': S.settings.model=el.value.trim(); persist(); pushSettings(); break;
     case 'setFb': S.settings.fbConfig=el.value; persist(); break;
     case 'setTheme': S.settings.theme=el.value; persist(); applyTheme(); render(); break;
   }
