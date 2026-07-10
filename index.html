@@ -131,6 +131,16 @@ nav.bottom{display:none}
 
 const DEFAULT_API_KEY = ''; // never commit a real key — paste it in Setup instead (saved per device)
 const DOB_DEFAULT = '2001-02-05';
+// Owner's coach profile (used to build the AI coach prompt). Guests get their own
+// generated at onboarding. Keeping the owner's here preserves his exact coach.
+const OWNER_BIO = 'one athlete (25, trains fasted, bikes ~1.75h/day commuting, lifts 5x/wk alternating core/arms + heavy compounds, eats one main meal ~7pm: salmon+eggs, whey+creatine+omega3+vitD, sleeps ~7h, weekend fasting protocol active some weeks)';
+// Share links surfaced to guests. Fill linkedin to show the "follow the build" link.
+const LINKS = { github:'https://github.com/KanishTuteja/hebe', linkedin:'' };
+// Generic starting templates for a brand-new guest (no cycling/fasting rituals).
+const GUEST_TEMPLATE = {
+  weekday:{ sleepH:7.5, sleepQ:7, workoutDone:false, workoutMin:0, rideH:0, sitH:8, sunMin:15, protein:90, water:2, supplements:false, mood:7, energy:7, stress:4, fastingH:12 },
+  weekend:{ sleepH:8, sleepQ:7, workoutDone:false, workoutMin:0, rideH:0, sitH:5, sunMin:25, protein:90, water:2, supplements:false, mood:7, energy:7, stress:3, fastingH:12 }
+};
 
 const ICONS = {
   home:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12H3l9-9 9 9h-2M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/><path d="M9 21v-6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v6"/></svg>',
@@ -202,7 +212,8 @@ const todayStr = () => dstr(new Date());
 let S = {
   page:'home', date:todayStr(), trendRange:30,
   days:{},
-  settings:{ dob:DOB_DEFAULT, name:'Kanish', apiKey:DEFAULT_API_KEY, model:'claude-sonnet-5', proteinTarget:135, theme:'light', fbConfig:'' },
+  settings:{ dob:DOB_DEFAULT, name:'Kanish', apiKey:DEFAULT_API_KEY, model:'claude-sonnet-5', proteinTarget:135, theme:'light', fbConfig:'', coachBio:OWNER_BIO },
+  onboarded:true,
   templates: JSON.parse(JSON.stringify(TEMPLATE_DEFAULTS)),
   protocols: [],
   lastWorkoutType:'core',
@@ -223,9 +234,15 @@ function defaultProtocols(){
 
 function loadLocal(){
   try{ S.days = JSON.parse(localStorage.getItem('hebe_days')||'{}'); }catch(e){ S.days={}; }
+  // A returning user has saved data; a brand-new visitor has none → guest onboarding.
+  // The owner is protected: any existing days/settings/onboarded flag counts as onboarded.
+  const hasData = !!localStorage.getItem('hebe_days') || !!localStorage.getItem('hebe_settings') || Object.keys(S.days).length>0;
+  S.onboarded = localStorage.getItem('hebe_onboarded')==='1' || hasData;
   try{ Object.assign(S.settings, JSON.parse(localStorage.getItem('hebe_settings')||'{}')); }catch(e){}
-  try{ const t = JSON.parse(localStorage.getItem('hebe_templates')||'null'); if(t) S.templates=t; }catch(e){}
-  try{ const p = JSON.parse(localStorage.getItem('hebe_protocols')||'null'); S.protocols = p || defaultProtocols(); }catch(e){ S.protocols=defaultProtocols(); }
+  if(!S.settings.coachBio) S.settings.coachBio = OWNER_BIO;
+  try{ const t = JSON.parse(localStorage.getItem('hebe_templates')||'null'); if(t) S.templates=t; else if(!S.onboarded) S.templates=JSON.parse(JSON.stringify(GUEST_TEMPLATE)); }catch(e){}
+  // Owner keeps the weekend-fasting protocol default; guests start with none.
+  try{ const p = JSON.parse(localStorage.getItem('hebe_protocols')||'null'); S.protocols = p || (S.onboarded ? defaultProtocols() : []); }catch(e){ S.protocols = S.onboarded?defaultProtocols():[]; }
   try{ S.lastWorkoutType = localStorage.getItem('hebe_lastwt')||'core'; }catch(e){}
   if(!S.settings.apiKey) S.settings.apiKey = DEFAULT_API_KEY;
 }
@@ -235,6 +252,7 @@ function persist(){
   localStorage.setItem('hebe_templates', JSON.stringify(S.templates));
   localStorage.setItem('hebe_protocols', JSON.stringify(S.protocols));
   localStorage.setItem('hebe_lastwt', S.lastWorkoutType);
+  if(S.onboarded) localStorage.setItem('hebe_onboarded','1');
 }
 
 // ---------- rituals engine ----------
@@ -481,23 +499,24 @@ function coachMessage(){
   const d = ensureDay(S.date), m = d.metrics;
   const proto = activeProtocol(S.date);
   const st = windowStats(S.date, 14);
+  // Data-driven so it reads right for anyone: the owner (rides + lifts) still gets
+  // training-aware copy because his metrics have it; a sedentary guest gets generic.
+  const hasCardio = m.rideH>0, hasLift = !!m.workoutDone, fastsToday = m.fastingH>=14;
   let text = '';
   if(seg==='morning'){
-    if(d.template==='weekday'){
-      text = 'Plan: ride out, '+(d.workoutType||'core')+' day + heavy compounds, coffee at 10. ';
-      if(st && st.sleepH<7.2) text += 'Sleep has been running '+st.sleepH.toFixed(1)+'h — tonight is the fix, lights out by 11.';
-      else text += 'Recovery looks solid — push the compounds today.';
-    } else if(proto){ text = 'Fast day, week '+protocolWeek(proto,S.date)+' of 4. Water, electrolytes, easy pace. Note your energy — that is the experiment data.'; }
-    else text = 'Rest day. A walk and some sun keep the ledger positive without loading recovery.';
+    if(proto){ text = 'Fast day, week '+protocolWeek(proto,S.date)+'. Water, electrolytes, easy pace — log your energy, that is the experiment data.'; }
+    else if(hasLift || hasCardio){
+      const plan = [hasCardio?'movement/cardio':null, hasLift?(d.workoutType?d.workoutType+' day':'a training session'):null].filter(Boolean).join(' + ');
+      text = 'Today’s plan: '+plan+'. ';
+      text += (st && st.sleepH<7.2) ? 'Sleep has been running '+st.sleepH.toFixed(1)+'h — tonight is the fix, aim for 7+.' : 'Recovery looks solid — make it count.';
+    }
+    else text = 'Lighter day. A short walk and some sun keep the ledger positive without loading recovery.';
   } else if(seg==='midday'){
-    if(d.template==='weekday') text = 'Deep in the fasting window (~'+(m.fastingH||19)+'h daily). Stay on water; if focus dips before 3, that is data worth logging tonight.';
-    else if(proto) text = 'Mid-fast. Hunger comes in waves and passes — log mood and energy when it does.';
-    else text = 'Easy weekend pace. Sun counts double for the ledger.';
+    if(fastsToday) text = 'In your fasting window (~'+(m.fastingH||14)+'h). Stay on water; if focus dips, that is worth logging tonight.';
+    else text = 'Midday: a little movement and some daylight now pays off on tonight’s score.';
   } else {
     const logged = d.confirmed ? 'Day is logged.' : 'Day is not confirmed yet — 10 seconds below.';
-    if(d.template==='weekday') text = logged+' '+(m.workoutDone?'Session + both commutes in the bank. ':'')+'Protect tomorrow: in bed by 11 gives you '+(7+0.5)+'h+ before a heavy morning.';
-    else if(proto) text = logged+' Fast day nearly done — tomorrow’s training will show what it cost or paid. Sleep is the refeed.';
-    else text = logged+' Quiet day is a recovery day. Bank the sleep.';
+    text = logged+' '+(hasLift?'Training’s in the bank. ':'')+'Protect tomorrow — earlier lights-out is the highest-leverage thing you can do tonight.';
   }
   return { seg, text, ai:false };
 }
@@ -506,7 +525,7 @@ async function coachAI(){
   const st = windowStats(S.date, 14);
   const d = ensureDay(S.date);
   const proto = activeProtocol(S.date);
-  const sys = 'You are HEBE, a longevity performance coach for one athlete (25, trains fasted, bikes ~1.75h/day commuting, lifts 5x/wk alternating core/arms + heavy compounds, eats one main meal ~7pm: salmon+eggs, whey+creatine+omega3+vitD, sleeps ~7h, weekend fasting protocol active some weeks). Coach at professional-athlete level: specific, direct, load-vs-recovery aware, no generic advice, no lecturing. For the evening debrief you are handed a pre-computed, evidence-based performance readout — DO NOT invent new numbers; narrate the ones given, name the single biggest lever, and be medically accurate (never overstate certainty). 2-4 sentences.';
+  const sys = 'You are HEBE, a longevity performance coach for '+(S.settings.coachBio||OWNER_BIO)+'. Coach this specific person practically and directly, load-vs-recovery aware, grounded in evidence, no generic filler, no lecturing. For the evening debrief you are handed a pre-computed, evidence-based performance readout — DO NOT invent new numbers; narrate the ones given, name the single biggest lever, and be medically accurate (never overstate certainty). 2-4 sentences.';
   // Pre-computed factors readout — passed in every segment so the coach can
   // reference the same numbers shown on the card, not just in the evening.
   let ctx = '';
@@ -1255,10 +1274,20 @@ function renderSetup(){
     + '</div>'
     + '<details class="sub mt" style="font-size:11.5px"><summary style="cursor:pointer">Firestore rules (copy into console)</summary><pre style="background:var(--card2);padding:8px;border-radius:8px;overflow-x:auto;font-size:10.5px">rules_version = \'2\';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    match /users/{uid}/{document=**} {\n      allow read, write: if request.auth != null &amp;&amp; request.auth.uid == uid;\n    }\n  }\n}</pre></details></div>';
 
-  h += '<div class="card mt fade"><h3>Backup</h3><div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">'
+  h += '<div class="card mt fade"><h3>Backup &amp; data</h3><div class="sub">Your data lives in this browser. Export a file to keep it or move it to another device — or connect your own Firebase above for automatic sync.</div>'
+    + '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">'
     + '<button class="btn primary" id="exportBtn">Export JSON</button>'
     + '<label class="btn" style="cursor:pointer">Import JSON<input type="file" id="importFile" accept=".json" style="display:none"></label>'
+    + '<button class="btn" id="loadSample">Load sample week</button>'
+    + '<button class="btn" id="reonboard">Reset &amp; re-onboard</button>'
     + '<button class="btn danger" id="wipeBtn">Delete all local data</button></div></div>';
+
+  h += '<div class="card mt fade"><h3>About HEBE</h3>'
+    + '<div class="sub" style="line-height:1.6">HEBE is a personal longevity experiment. The age it shows is a <b>functional estimate</b> that moves with your habits — <b>not a medical or biological-age measurement, and not a diagnosis.</b> Every factor is weighted from published all-cause-mortality research (sleep, activity, sitting, resting heart rate, diet). It needs ~2 weeks of logging to calibrate to you. Not medical advice — talk to a professional for health decisions.</div>'
+    + '<div style="display:flex;gap:8px;margin-top:11px;flex-wrap:wrap">'
+    + '<a class="btn" href="'+LINKS.github+'" target="_blank" rel="noopener">★ Star it on GitHub</a>'
+    + (LINKS.linkedin ? '<a class="btn" href="'+LINKS.linkedin+'" target="_blank" rel="noopener">Follow the build on LinkedIn</a>' : '')
+    + '</div></div>';
   return h;
 }
 
@@ -1298,9 +1327,13 @@ document.addEventListener('click', e=>{
   if(dc){ const id=dc.dataset.chip; if(activeChips.has(id)){activeChips.delete(id);dc.classList.remove('on');} else {activeChips.add(id);dc.classList.add('on');} return; }
   const del = e.target.closest('[data-delfood]');
   if(del){ const d=ensureDay(S.date); d.foods.splice(+del.dataset.delfood,1); saveDay(S.date); render(); return; }
-  if(e.target.id==='modalBg') hideModal();
+  if(e.target.id==='modalBg' && !onboardingOpen) hideModal();
   const t = e.target.closest('button, label'); if(!t) return;
   switch(t.id){
+    case 'obDone': completeOnboarding(); break;
+    case 'obSkip': onboardingOpen=false; S.onboarded=true; localStorage.setItem('hebe_onboarded','1'); S.page='setup'; hideModal(); render(); break;
+    case 'loadSample': loadSampleWeek(); break;
+    case 'reonboard': resetAndReonboard(); break;
     case 'themeToggle': S.settings.theme = S.settings.theme==='dark'?'light':'dark'; persist(); applyTheme(); render(); break;
     case 'ciYes': applyCheckin(true); break;
     case 'ciNo': checkinOpen=!checkinOpen; render(); break;
@@ -1375,6 +1408,89 @@ function doWipe(){
   render(); toast('Local data deleted');
 }
 
+// ---------- guest onboarding + sample data ----------
+let onboardingOpen=false;
+function activityLabel(a){ return {sed:'mostly sedentary', light:'lightly active', active:'active', very:'very active'}[a]||'active'; }
+function buildGuestTemplates(p){
+  const t = JSON.parse(JSON.stringify(GUEST_TEMPLATE));
+  const trains = Math.max(0, Math.min(7, p.trainDays||0));
+  t.weekday.sleepH = p.sleep; t.weekend.sleepH = Math.min(9.5, p.sleep+0.5);
+  t.weekday.sitH = p.sit; t.weekend.sitH = Math.max(2, p.sit-3);
+  t.weekday.protein = p.protein; t.weekend.protein = p.protein;
+  t.weekday.workoutDone = trains>=4; t.weekend.workoutDone = trains>=6;
+  t.weekday.workoutMin = trains>0?40:0; t.weekend.workoutMin = trains>=6?40:0;
+  return t;
+}
+function guestCoachBio(p){
+  const age = Math.floor((Date.now()-new Date(p.dob+'T12:00:00'))/(365.2425*864e5));
+  return p.name+', '+age+(p.sex&&p.sex!=='na'?' ('+p.sex+')':'')+', '+activityLabel(p.activity)+' (~'+(p.trainDays||0)+' training days/week), typical sleep ~'+p.sleep+'h, ~'+p.sit+'h sitting/day, protein target ~'+p.protein+'g';
+}
+function showOnboarding(){
+  onboardingOpen=true;
+  const h = '<div>'
+    + '<h2 style="margin-top:0">Welcome to HEBE</h2>'
+    + '<p class="sub" style="line-height:1.55">HEBE estimates your <b>functional age</b> from how you live — then each day shows what helped or hurt it and the one thing to fix next. Grounded in published human-health studies. A personal experiment, <b>not medical advice</b> and not a diagnosis.</p>'
+    + '<div class="frow mt"><div><label class="f">First name</label><input id="obName" placeholder="Alex"></div><div><label class="f">Birth date</label><input type="date" id="obDob" value="1995-01-01"></div></div>'
+    + '<div class="frow mt"><div><label class="f">Biological sex (optional)</label><select id="obSex"><option value="na">Prefer not to say</option><option value="male">Male</option><option value="female">Female</option></select></div><div><label class="f">Activity level</label><select id="obAct"><option value="sed">Mostly sedentary</option><option value="light" selected>Lightly active</option><option value="active">Active</option><option value="very">Very active</option></select></div></div>'
+    + '<div class="frow mt"><div><label class="f">Training days / week</label><input type="number" id="obTrain" value="2" min="0" max="7"></div><div><label class="f">Typical sleep (h)</label><input type="number" id="obSleep" value="7.5" step="0.5"></div></div>'
+    + '<div class="frow mt"><div><label class="f">Sitting hours / day</label><input type="number" id="obSit" value="8"></div><div><label class="f">Protein target (g)</label><input type="number" id="obProt" value="90"></div></div>'
+    + '<label class="mt" style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="obSample" checked style="width:auto"> Load a sample week so I can explore it right away</label>'
+    + '<button class="btn primary mt" id="obDone" style="width:100%">Start HEBE</button>'
+    + '<button id="obSkip" class="mt" style="width:100%;background:none;border:none;color:var(--text3);font-size:12px;cursor:pointer;text-decoration:underline">I already use HEBE — take me to sign in / import</button>'
+    + '<div class="sub" style="font-size:11px;margin-top:8px">Your data stays in your browser. Add your own Claude API key later for the live AI coach, or use it without one.</div>'
+    + '</div>';
+  showModal(h);
+}
+function completeOnboarding(){
+  const name=(document.getElementById('obName').value||'').trim();
+  const dob=document.getElementById('obDob').value;
+  if(!name){ toast('Add your name'); return; }
+  if(!dob){ toast('Add your birth date'); return; }
+  const p = { name, dob, sex:document.getElementById('obSex').value,
+    activity:document.getElementById('obAct').value,
+    trainDays:+document.getElementById('obTrain').value||0,
+    sleep:+document.getElementById('obSleep').value||7.5,
+    sit:+document.getElementById('obSit').value||8,
+    protein:+document.getElementById('obProt').value||90 };
+  S.settings.name=p.name; S.settings.dob=p.dob; S.settings.proteinTarget=p.protein;
+  S.settings.coachBio=guestCoachBio(p);
+  S.templates=buildGuestTemplates(p);
+  S.protocols=[]; S.onboarded=true;
+  const wantSample = document.getElementById('obSample').checked;
+  if(S.days[S.date] && !S.days[S.date].confirmed) delete S.days[S.date];
+  ensureDay(S.date); persist();
+  onboardingOpen=false; hideModal();
+  if(wantSample) loadSampleWeek(); else render();
+  toast('Welcome, '+p.name+'!');
+}
+function loadSampleWeek(){
+  const n=16; const jit=(base,spread)=>Math.round((base+(Math.random()*2-1)*spread)*10)/10;
+  for(let i=n;i>=1;i--){
+    const dt=new Date(); dt.setDate(dt.getDate()-i); const key=dstr(dt);
+    const d=ensureDay(key); const t=S.templates[templateFor(key)];
+    d.metrics.sleepH=clamp(jit(t.sleepH,0.9),5,9.5);
+    d.metrics.sleepQ=clamp(Math.round(jit(7,1.5)),3,10);
+    d.metrics.sitH=clamp(jit(t.sitH,1.5),2,12);
+    d.metrics.protein=Math.max(0,Math.round(jit(t.protein,25)));
+    d.metrics.workoutDone=Math.random()<(t.workoutDone?0.7:0.3);
+    d.metrics.workoutMin=d.metrics.workoutDone?Math.round(jit(40,15)):0;
+    d.metrics.mood=clamp(Math.round(jit(7,1.5)),3,10);
+    d.metrics.energy=clamp(Math.round(jit(7,1.5)),3,10);
+    d.metrics.stress=clamp(Math.round(jit(4,1.5)),1,9);
+    d.confirmed=true; d.deviations=[]; d.updatedAt=Date.now()-i*1000;
+    d.hebeAge=computeHebeAge(key);
+  }
+  persist(); render(); toast('Loaded a sample week — explore away');
+}
+function resetAndReonboard(){
+  if(!confirm('Clear this device and start onboarding again? Export a backup first if you want to keep the data.')) return;
+  ['hebe_days','hebe_templates','hebe_protocols','hebe_lastreport','hebe_onboarded','hebe_settings'].forEach(k=>localStorage.removeItem(k));
+  S.days={}; S.onboarded=false; S.protocols=[];
+  S.templates=JSON.parse(JSON.stringify(GUEST_TEMPLATE));
+  S.settings.name=''; S.settings.coachBio=OWNER_BIO;
+  render(); showOnboarding();
+}
+
 // ---------- boot ----------
 loadLocal();
 applyTheme();
@@ -1382,6 +1498,7 @@ ensureDay(S.date);
 render();
 setSync('local');
 if(parseFbConfig()) initFirebase();
+if(!S.onboarded) showOnboarding();
 </script>
 </body>
 </html>
