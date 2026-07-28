@@ -40,6 +40,27 @@ main{padding:22px 26px 90px;max-width:1060px;width:100%;margin:0 auto}
 .topline .l{font-size:13.5px;color:var(--text2)}
 .topline .r{font-size:12px;color:var(--text3)}
 .proto-pill{display:inline-block;background:var(--amber-bg);color:var(--amber-dk);border-radius:99px;padding:1px 10px;font-size:11.5px;margin-left:8px}
+.catchup-pill{display:inline-block;background:var(--purple-bg);color:var(--purple-dk);border-radius:99px;padding:1px 10px;font-size:11.5px;margin-left:8px;font-weight:600}
+.fork{margin-top:12px;border-top:1px solid var(--line);padding-top:12px}
+.fork-row{display:flex;align-items:baseline;justify-content:space-between;gap:10px;font-size:12.5px;padding:3px 0}
+.fork-row .lab{color:var(--text2)}
+.fork-row .val{font-weight:700;font-variant-numeric:tabular-nums}
+.fork-hold .val{color:var(--text2)}
+.fork-fix .val{color:var(--teal-dk)}
+.fork-gain{margin-top:9px;font-size:12.5px;line-height:1.5;color:var(--teal-dk);background:var(--teal-bg);border-radius:9px;padding:8px 11px}
+.onemove{background:linear-gradient(180deg,var(--purple-bg),var(--card));border:1px solid var(--purple);border-radius:var(--r);padding:15px 18px;margin-top:14px;display:flex;gap:14px;align-items:flex-start}
+.onemove .ic{flex-shrink:0;width:34px;height:34px;border-radius:9px;background:var(--purple);color:#fff;display:flex;align-items:center;justify-content:center}
+.onemove .k{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--purple-dk);font-weight:700}
+.onemove .mv{font-size:16px;font-weight:700;margin-top:2px;line-height:1.3}
+.onemove .wy{font-size:12.5px;color:var(--text2);margin-top:3px;line-height:1.45}
+.onemove .worth{margin-left:auto;text-align:right;flex-shrink:0}
+.onemove .worth .n{font-size:20px;font-weight:800;color:var(--purple-dk);line-height:1;font-variant-numeric:tabular-nums}
+.onemove .worth .u{font-size:10.5px;color:var(--text2);display:block;margin-top:2px}
+.datenav{display:inline-flex;align-items:center;gap:4px}
+.dnav{border:1px solid var(--line2);background:var(--card);color:var(--text2);border-radius:8px;font-family:inherit;font-size:13px;line-height:1;padding:3px 8px;cursor:pointer}
+.dnav:hover:not(:disabled){border-color:var(--teal);color:var(--teal-dk)}
+.dnav:disabled{opacity:.32;cursor:default}
+.dnav.today{font-size:11.5px;padding:4px 9px;margin-left:4px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px}
 .tile{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:11px 13px}
 .tile .k{font-size:11.5px;color:var(--text2)}
@@ -154,7 +175,8 @@ const ICONS = {
   chat:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>',
   bulb:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 1 3.6 10.8 3.5 3.5 0 0 0-1.1 2.2H9.5a3.5 3.5 0 0 0-1.1-2.2A6 6 0 0 1 12 3z"/></svg>',
   down:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l6 6 4-4 8 8"/><path d="M21 11v6h-6"/></svg>',
-  up:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M21 13V7h-6"/></svg>'
+  up:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M21 13V7h-6"/></svg>',
+  bolt:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h8l-1 8 10-12h-8z"/></svg>'
 };
 
 const CHIPS = [
@@ -286,12 +308,60 @@ function ensureDay(date){
 function saveDay(date){
   const d = ensureDay(date);
   d.updatedAt = Date.now();
-  d.hebeAge = computeHebeAge(date);
+  recomputeAgesFrom(date);
   persist();
   cloudPush(date);
 }
+// hebeAge is an EMA chained off the previous logged day, so a day logged out of
+// order (backfill) invalidates every day after it. Recompute the tail in order.
+function recomputeAgesFrom(date){
+  const chain = confirmedDates().filter(k => k>=date);
+  (chain.length ? chain : [date]).forEach(k=>{
+    const d = S.days[k]; if(!d) return;
+    d.hebeAge = computeHebeAge(k);
+    if(k!==date) cloudPush(k);
+  });
+}
 function confirmedDates(before){
   return Object.keys(S.days).filter(k => S.days[k].updatedAt>0 && (!before || k<=before)).sort();
+}
+
+// ---------- catch-up (logging days you missed) ----------
+// A day you never confirmed silently drops out of the 14/21-day windows, which
+// quietly biases HEBE age toward whatever days you *did* feel like logging.
+// So: any unlogged past day inside the rolling window is offered for backfill.
+const CATCHUP_WINDOW = 14;
+function missedDates(){
+  const logged = confirmedDates();
+  if(!logged.length) return [];              // nothing to catch up on before your first log
+  const first = logged[0], today = todayStr(), out = [];
+  for(let i=1;i<=CATCHUP_WINDOW;i++){
+    const dt = new Date(today+'T12:00:00'); dt.setDate(dt.getDate()-i);
+    const k = dstr(dt);
+    if(k < first) break;
+    if(!S.days[k] || !S.days[k].confirmed) out.push(k);
+  }
+  return out.reverse();                      // oldest first
+}
+function goToDate(k){
+  if(k > todayStr()) return;
+  S.date = k; checkinOpen = false; activeChips.clear();
+  ensureDay(k); render();
+}
+function shiftDate(n){
+  const dt = new Date(S.date+'T12:00:00'); dt.setDate(dt.getDate()+n);
+  goToDate(dstr(dt));
+}
+// Backfill every missed day straight from its template — the bulk version of
+// "usual day?". Each day stays editable afterwards.
+function fillMissedDays(){
+  const missed = missedDates();
+  if(!missed.length) return;
+  if(!confirm('Log '+missed.length+' missed day'+(missed.length>1?'s':'')+' from your templates?\nEach one stays editable — open it from the date arrows to adjust.')) return;
+  missed.forEach(k=>{ const d=ensureDay(k); d.confirmed=true; d.backfilled=true; d.updatedAt=Date.now(); });
+  recomputeAgesFrom(missed[0]);
+  persist(); missed.forEach(cloudPush); render();
+  toast(missed.length+' day'+(missed.length>1?'s':'')+' backfilled — HEBE age rebuilt');
 }
 
 // ---------- HEBE age engine ----------
@@ -379,6 +449,66 @@ function ageTrendPerMonth(date){
   const delta = (S.days[last].hebeAge - S.days[first].hebeAge)/spanDays*30;
   // subtract natural chronological drift (~0.082/month) to show behavior-driven trend
   return Math.round((delta - 30/365.2425)*100)/100;
+}
+
+// ---------- levers + trajectory (the "so what") ----------
+// Every lever's *best achievable* contribution is fixed by the same published
+// coefficient that drives HEBE age (see ageAdjustments). So "reclaimable years"
+// is not a motivational invention — it is the exact distance, in the model, from
+// where you are to the floor the evidence supports. That is what we show.
+// Floors: Sleep -0.10 (7h) · Training -2.2 · Strength -0.75 · Sitting 0 ·
+//         Food -1.05 (~clean) · Resting HR -1.5 (~50bpm) · Stress 0.
+const LEVER_FLOOR = { 'Sleep':-0.10, 'Training volume':-2.2, 'Strength':-0.75,
+  'Sitting':0, 'Food quality':-1.05, 'Resting HR':-1.5, 'Stress':0 };
+// Levers we can't move by tonight (RHR is a weeks-long adaptation) are still
+// shown as trajectory, but never picked as "today's one move".
+const LEVER_SLOW = { 'Resting HR':true };
+function leverMove(name, st, m){
+  switch(name){
+    case 'Sleep': return st.sleepH < 7
+      ? { move:'Get to 7 hours tonight', why:'you\'re averaging '+st.sleepH.toFixed(1)+'h — the sweet spot is 7' }
+      : { move:'Cap sleep near 7 hours', why:'oversleeping ('+st.sleepH.toFixed(1)+'h avg) ages harder than short sleep in the data' };
+    case 'Training volume': return { move:'Add ~'+Math.min(1.5,Math.max(0.3,(2.4-st.trainH))).toFixed(1)+'h of easy movement', why:'a longer ride or a zone-2 walk — you\'re at '+st.trainH.toFixed(1)+'h/day' };
+    case 'Strength': { const need = st.liftPerWk<1.5?2:1; return { move:'Lift '+need+' more time'+(need>1?'s':'')+' this week', why:'resistance work 3×/wk is worth ~0.75y on its own; you\'re at '+st.liftPerWk.toFixed(1)+'/wk' }; }
+    case 'Sitting': return { move:'Break up your sitting — stand every hour', why:'you\'re averaging '+st.sitH.toFixed(1)+'h/day seated' };
+    case 'Food quality': return st.foodAvg==null
+      ? { move:'Log a couple of meals', why:'food is a ~1-year lever you\'re not measuring yet — log to unlock it' }
+      : { move:'Swap the most processed thing you eat', why:'your food score is '+Math.round(st.foodAvg)+'/100 — clean whole foods pull it up' };
+    case 'Resting HR': return { move:'Bank zone-2 cardio this week', why:'resting HR ('+Math.round(st.rhrAvg)+'bpm) drops over a few weeks of easy cardio' };
+    case 'Stress': return { move:'Take the edge off — walk, breathe, earlier wind-down', why:'stress is averaging '+st.stress.toFixed(1)+'/10' };
+    default: return { move:'Hold the line', why:'' };
+  }
+}
+// Returns levers sorted by reclaimable years (now → evidence-backed floor).
+function levers(date){
+  const st = windowStats(date, 21);
+  if(!st) return [];
+  const d = ensureDay(date), m = d.metrics;
+  const parts = ageAdjustments(st).parts;
+  return parts.map(([name, now])=>{
+    const floor = LEVER_FLOOR[name] ?? 0;
+    const gain = Math.max(0, now - floor);           // years currently left on the table
+    const mv = leverMove(name, st, m);
+    return { name, now, floor, gain, slow:!!LEVER_SLOW[name], move:mv.move, why:mv.why };
+  }).sort((a,b)=> b.gain - a.gain);
+}
+// The single highest-leverage thing you can act on today.
+function topLever(date){
+  return levers(date).find(l => l.gain >= 0.12 && !l.slow) || null;
+}
+// Honest forward projection: a rate applied to habits. If today's habits become
+// your normal, the offset holds; fixing your top lever improves it by exactly
+// its reclaimable years — at the horizon and every year after.
+function trajectory(date){
+  const chrono = chronoAge(date);
+  const st = windowStats(date, 21);
+  if(!st) return null;
+  const total = ageAdjustments(st).total;
+  const lev = topLever(date);
+  const H = 10;                                       // a decade out — relatable, honest
+  const holdBio = chrono + H + total;
+  const fixBio  = chrono + H + Math.max(-6, total - (lev? lev.gain : 0));
+  return { horizonChrono: chrono + H, holdBio, fixBio, gain: lev? lev.gain : 0, lever: lev };
 }
 
 // ---------- evening debrief engine ----------
@@ -489,6 +619,7 @@ function debriefVerdict(date){
 
 // ---------- coach + insights (rule-based, AI-upgraded) ----------
 function coachSegment(){
+  if(S.date < todayStr()) return 'evening';   // a past day is over — debrief voice, not a plan
   const h = new Date().getHours();
   return h<10 ? 'morning' : (h<17 ? 'midday' : 'evening');
 }
@@ -680,9 +811,18 @@ async function applyCheckin(asPlanned){
   }
   const wt = document.querySelector('.wt-chip.on');
   if(wt && d.template==='weekday'){ d.workoutType = wt.dataset.wt; S.lastWorkoutType = wt.dataset.wt; }
+  const wasPast = S.date < todayStr();
   d.confirmed = true;
+  if(wasPast) d.backfilled = true;
   saveDay(S.date);
   checkinOpen=false; activeChips.clear();
+  if(wasPast){
+    // Catching up: walk straight to the next missed day, then land back on today.
+    const next = missedDates()[0];
+    goToDate(next || todayStr());
+    toast(next ? fmtDate(d.date)+' logged — next: '+shortDate(next) : 'Caught up — all days logged');
+    return;
+  }
   render();
   toast('Day logged — HEBE age updated');
 }
@@ -746,8 +886,17 @@ function dayStory(date){
 function attachStory(chart, dates){
   chart.options.onClick = (e,els)=>{
     if(!els.length) return;
-    const s = dayStory(dates[els[0].index]);
-    if(s) showModal('<h2>Day story</h2><pre style="white-space:pre-wrap;font-family:inherit;font-size:13px;color:var(--text2)">'+esc(s)+'</pre><button class="btn" onclick="hideModal()">Close</button>');
+    const dt = dates[els[0].index];
+    if(dt > todayStr()) return;
+    const s = dayStory(dt);
+    // Even an unlogged point is worth opening — that is how you reach a missed
+    // day older than the catch-up window.
+    showModal('<h2>'+(s?'Day story':'Not logged')+'</h2>'
+      + '<pre style="white-space:pre-wrap;font-family:inherit;font-size:13px;color:var(--text2)">'+esc(s || fmtDate(dt)+'\nNothing logged for this day yet.')+'</pre>'
+      + '<div style="display:flex;gap:8px;margin-top:12px">'
+      +   '<button class="btn'+(s?'':' primary')+'" onclick="hideModal();goToDate(\''+dt+'\')">'+(s?'Open this day':'Log this day')+'</button>'
+      +   '<button class="btn" onclick="hideModal()">Close</button>'
+      + '</div>');
   };
 }
 
@@ -852,6 +1001,7 @@ function showModal(html){ document.getElementById('modalBox').innerHTML=html; do
 function hideModal(){ document.getElementById('modalBg').style.display='none'; }
 function scoreCol(s){ return s>=75?css('--teal'):(s>=50?css('--amber'):css('--coral')); }
 function fmtDate(date){ return new Date(date+'T12:00:00').toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'}); }
+function shortDate(date){ return new Date(date+'T12:00:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'}); }
 
 // ---------- page renderers ----------
 const PAGES=[['home','Home','home'],['perf','Performance','perf'],['fuel','Fuel','fuel'],['body','Body','body'],['reports','Reports','reports']];
@@ -859,11 +1009,52 @@ const PAGES=[['home','Home','home'],['perf','Performance','perf'],['fuel','Fuel'
 function topline(){
   const proto = activeProtocol(S.date);
   const protoAny = S.protocols[0] && S.date>=S.protocols[0].start && S.date<=S.protocols[0].end ? S.protocols[0] : null;
-  return '<div class="topline"><div class="l">'+fmtDate(S.date)
-    + (protoAny ? '<span class="proto-pill">'+esc(protoAny.name)+' · week '+protocolWeek(protoAny,S.date)+' of 4'+(proto?' · today is a fast day':'')+'</span>':'' )
-    + '</div><div class="r">'+new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})+'</div></div>';
+  const past = S.date < todayStr();
+  const d = S.days[S.date];
+  return '<div class="topline"><div class="l">'
+    + '<span class="datenav">'
+    +   '<button class="dnav" id="dPrev" title="Previous day">&lsaquo;</button>'
+    +   '<span>'+fmtDate(S.date)+'</span>'
+    +   '<button class="dnav" id="dNext" title="Next day"'+(past?'':' disabled')+'>&rsaquo;</button>'
+    +   (past ? '<button class="dnav today" id="dToday">Today</button>' : '')
+    + '</span>'
+    + (past ? '<span class="catchup-pill">'+(d&&d.confirmed?'past day':'catching up')+'</span>' : '')
+    + (protoAny ? '<span class="proto-pill">'+esc(protoAny.name)+' · week '+protocolWeek(protoAny,S.date)+' of 4'+(proto?(past?' · fast day':' · today is a fast day'):'')+'</span>':'' )
+    + '</div><div class="r">'+(past ? 'logged after the fact' : new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}))+'</div></div>';
 }
 
+// The fork: two honest futures a decade out, and what one habit is worth.
+function forkHTML(nConf, matureDays){
+  if(nConf < matureDays) return '';               // don't project off an unsettled baseline
+  const t = trajectory(S.date);
+  if(!t) return '';
+  const yr = Math.round(t.horizonChrono);
+  let h = '<div class="fork">';
+  h += '<div class="sub" style="font-size:11px;letter-spacing:.05em;text-transform:uppercase;font-weight:700;color:var(--text2)">If this becomes your normal — at '+yr+'</div>';
+  h += '<div class="fork-row fork-hold"><span class="lab">Hold today’s habits</span><span class="val">'+t.holdBio.toFixed(1)+'</span></div>';
+  if(t.lever && t.gain>=0.12){
+    h += '<div class="fork-row fork-fix"><span class="lab">Fix your '+t.lever.name.toLowerCase()+'</span><span class="val">'+t.fixBio.toFixed(1)+'</span></div>';
+    h += '<div class="fork-gain">That one habit is worth <b>'+t.gain.toFixed(1)+' years</b> of your biological age — at '+yr+', and every year after.</div>';
+  } else {
+    h += '<div class="fork-gain">You’re near the model’s floor on every lever. This is elite territory — the game now is holding it.</div>';
+  }
+  return h + '</div>';
+}
+// Today's single highest-leverage move — the directive that makes the number mean something.
+function oneMoveHTML(){
+  const past = S.date < todayStr();
+  const lev = topLever(S.date);
+  if(!lev) return '';
+  return '<div class="onemove fade">'
+    + '<div class="ic">'+ICONS.bolt+'</div>'
+    + '<div style="flex:1;min-width:0">'
+    +   '<div class="k">'+(past?'That day’s one move':'Today’s one move')+'</div>'
+    +   '<div class="mv">'+esc(lev.move)+'</div>'
+    +   '<div class="wy">'+esc(lev.why)+'</div>'
+    + '</div>'
+    + '<div class="worth"><span class="n">'+lev.gain.toFixed(1)+'</span><span class="u">yrs on the table</span></div>'
+    + '</div>';
+}
 function renderHome(){
   const d = ensureDay(S.date);
   const age = d.hebeAge!=null? d.hebeAge : computeHebeAge(S.date);
@@ -893,6 +1084,22 @@ function renderHome(){
   }
 
   let h = topline();
+
+  // Catch-up: unlogged days quietly bias every rolling average, so surface them
+  // on the day you come back rather than letting them fall out of the window.
+  const missed = missedDates();
+  if(missed.length && S.date===todayStr()){
+    h += '<div class="card fade" style="border-color:var(--amber);background:var(--amber-bg);margin-bottom:14px">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">'
+      +   '<div><b>'+missed.length+' day'+(missed.length>1?'s':'')+' you have not logged</b>'
+      +   '<div class="sub" style="margin-top:2px;color:var(--amber-dk)">Backfill them and your averages — and the HEBE age they drive — stay honest.</div></div>'
+      +   '<button class="btn" id="fillAll">Log all as usual</button>'
+      + '</div>'
+      + '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:11px">'
+      + missed.map(k=>'<span class="chip" data-goday="'+k+'">'+shortDate(k)+'</span>').join('')
+      + '</div></div>';
+  }
+
   h += '<div class="grid2 fade">';
   h += '<div class="card"><div class="sub">Your HEBE age</div>'
     + '<div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap">'
@@ -901,13 +1108,17 @@ function renderHome(){
     + '</div>'
     + '<div class="sub" style="margin-top:4px">chronological '+chrono.toFixed(2)+' · '+(age<=chrono? 'living '+(chrono-age).toFixed(2)+' yrs younger':'running '+(age-chrono).toFixed(2)+' yrs older')+'</div>'
     + (ageNote ? '<div class="sub" style="margin-top:8px;font-size:11.5px;line-height:1.5;background:var(--amber-bg);border:1px solid var(--line2);padding:8px 10px;border-radius:9px">'+ageNote+'</div>' : '')
-    + '<div class="chartbox" style="height:120px;margin-top:10px"><canvas id="chAgeSpark"></canvas></div>'
+    + forkHTML(nConf, MATURE_DAYS)
+    + '<div class="chartbox" style="height:120px;margin-top:12px"><canvas id="chAgeSpark"></canvas></div>'
     + '<div class="sub" style="font-size:11px;margin-top:2px">hover to scrub · click a day for its story</div></div>';
   h += '<div class="card" style="display:flex;flex-direction:column"><div class="coach-tag">'+ICONS.chat+' '+segLbl+(coach.ai?' · AI':'')+'</div>'
     + '<div style="font-size:13.5px;line-height:1.55;margin-top:7px">'+esc(coach.text)+'</div>'
     + debriefHTML(S.date)
     + '<div style="margin-top:auto;padding-top:10px">'+(S.settings.apiKey?'<button class="btn" id="coachAiBtn" style="font-size:12px;padding:6px 12px">'+(coach.ai?'Regenerate':'Ask the coach (AI)')+'</button>':'<span class="sub">Add an API key in Setup for the live coach</span>')+'</div></div>';
   h += '</div>';
+
+  // The one thing that matters today — the whole point, above the tiles.
+  h += oneMoveHTML();
 
   h += '<div class="grid4 mt fade">';
   const sleepOff = Math.abs(m.sleepH-7);
@@ -918,12 +1129,13 @@ function renderHome(){
   h += '</div>';
 
   h += '<div class="grid2 mt fade">';
-  h += '<div class="card" style="border-color:var(--line2)"><div style="display:flex;justify-content:space-between;align-items:center"><h3>'+(coach.seg==='evening'?'Evening':'Daily')+' check-in</h3><span class="sub">'+(d.confirmed?'logged ✓':'10 sec')+'</span></div>';
+  const isPast = S.date < todayStr();
+  h += '<div class="card" style="border-color:'+(isPast&&!d.confirmed?'var(--amber)':'var(--line2)')+'"><div style="display:flex;justify-content:space-between;align-items:center"><h3>'+(isPast?'Catch-up log':(coach.seg==='evening'?'Evening':'Daily')+' check-in')+'</h3><span class="sub">'+(d.confirmed?'logged ✓':'10 sec')+'</span></div>';
   if(d.confirmed){
-    h += '<div class="sub" style="margin-top:8px">Logged as '+(d.deviations.length? d.deviations.length+' deviation(s) from':'')+' your '+d.template+' template'+(d.workoutType?' · '+d.workoutType+' day':'')+'.</div>'
-      + '<button class="btn" id="reopenCheckin" style="margin-top:10px;font-size:12px;padding:6px 12px">Edit today</button>';
+    h += '<div class="sub" style="margin-top:8px">Logged as '+(d.deviations.length? d.deviations.length+' deviation(s) from':'')+' your '+d.template+' template'+(d.workoutType?' · '+d.workoutType+' day':'')+(d.backfilled?' · backfilled':'')+'.</div>'
+      + '<button class="btn" id="reopenCheckin" style="margin-top:10px;font-size:12px;padding:6px 12px">Edit '+(isPast?'this day':'today')+'</button>';
   } else {
-    h += '<div class="sub" style="margin-top:5px">Usual '+d.template+'?'+(d.protocolId?' (fast day per protocol)':'')+'</div>';
+    h += '<div class="sub" style="margin-top:5px">'+(isPast?'How did '+shortDate(S.date)+' actually go? Usual '+d.template+'?':'Usual '+d.template+'?')+(d.protocolId?' (fast day per protocol)':'')+'</div>';
     if(d.template==='weekday') h += '<div style="margin-top:9px;display:flex;gap:7px"><span class="chip wt-chip '+(d.workoutType==='core'?'on':'')+'" data-wt="core">Core day</span><span class="chip wt-chip '+(d.workoutType==='arms'?'on':'')+'" data-wt="arms">Arms day</span></div>';
     h += '<div style="display:flex;gap:9px;margin-top:11px"><button class="btn primary" id="ciYes" style="flex:1">Yes, as planned</button><button class="btn" id="ciNo" style="flex:1">Something changed</button></div>';
     if(checkinOpen){
@@ -1321,6 +1533,8 @@ document.addEventListener('click', e=>{
   if(pg){ S.page=pg.dataset.page; render(); return; }
   const rng = e.target.closest('[data-range]');
   if(rng){ S.trendRange=+rng.dataset.range; render(); return; }
+  const gd = e.target.closest('[data-goday]');
+  if(gd){ goToDate(gd.dataset.goday); return; }
   const wt = e.target.closest('.wt-chip');
   if(wt){ document.querySelectorAll('.wt-chip').forEach(x=>x.classList.remove('on')); wt.classList.add('on'); return; }
   const dc = e.target.closest('.dev-chip');
@@ -1335,6 +1549,10 @@ document.addEventListener('click', e=>{
     case 'loadSample': loadSampleWeek(); break;
     case 'reonboard': resetAndReonboard(); break;
     case 'themeToggle': S.settings.theme = S.settings.theme==='dark'?'light':'dark'; persist(); applyTheme(); render(); break;
+    case 'dPrev': shiftDate(-1); break;
+    case 'dNext': shiftDate(1); break;
+    case 'dToday': goToDate(todayStr()); break;
+    case 'fillAll': fillMissedDays(); break;
     case 'ciYes': applyCheckin(true); break;
     case 'ciNo': checkinOpen=!checkinOpen; render(); break;
     case 'ciApply': applyCheckin(false); break;
