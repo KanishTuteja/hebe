@@ -127,6 +127,45 @@ nav.bottom{display:none}
 @keyframes fade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
 .spin{display:inline-block;animation:spin 1s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+
+/* ---- nutrition merge ---- */
+.logrow{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
+.logrow input[type=text]{flex:1;min-width:150px}
+.logrow select{flex:1;min-width:150px;font-family:inherit;font-size:13px;padding:9px 10px;border:1px solid var(--line);border-radius:9px;background:var(--card2);color:var(--text)}
+.qty{width:110px;flex:0 0 auto}
+.estbox{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text3);cursor:pointer;white-space:nowrap}
+.estbox input{width:auto;margin:0}
+.logsub{font-size:11px;color:var(--text3);margin:12px 0 6px;letter-spacing:.03em;text-transform:uppercase}
+.esttag{font-weight:500;font-size:9.5px;color:var(--amber);border:1px solid var(--amber);border-radius:3px;padding:1px 4px;margin-left:5px;vertical-align:1px;text-transform:none;letter-spacing:0}
+.foodrow.est{opacity:.82}
+.scorepill.whole{background:var(--teal-bg);color:var(--teal);font-size:10.5px}
+.macrogrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:12px}
+.macrocell{background:var(--card2);border-radius:10px;padding:11px 12px}
+.macroval{font-size:22px;font-weight:600;line-height:1.15;font-variant-numeric:tabular-nums}
+.nbar{height:4px;background:var(--line);border-radius:2px;margin-top:8px;overflow:hidden}
+.nbar i{display:block;height:100%;border-radius:2px;background:var(--text3)}
+.nbar i.ok{background:var(--teal)} .nbar i.mid{background:var(--amber)} .nbar i.low{background:var(--coral)}
+.nutgrp{font-size:11px;color:var(--text3);margin:18px 0 8px;padding-bottom:5px;border-bottom:1px solid var(--line);letter-spacing:.03em;text-transform:uppercase}
+.nutrow{padding:10px 0;border-bottom:1px solid var(--line)}
+.nutrow:last-of-type{border-bottom:none}
+.nuthead{display:flex;justify-content:space-between;align-items:baseline;gap:12px;cursor:pointer}
+.nutname{font-weight:600;font-size:13.5px}
+.nutfig{font-size:12px;color:var(--text3);font-variant-numeric:tabular-nums;white-space:nowrap}
+.nutfig b{color:var(--text);font-weight:600}
+.unk{color:var(--amber);font-size:10.5px}
+.nutdet{font-size:12.5px;color:var(--text2);margin-top:8px;display:none;line-height:1.65}
+.nutrow.open .nutdet{display:block}
+.nutdet em{font-style:normal;color:var(--text);font-weight:600}
+.lexcard summary{cursor:pointer;font-weight:600;font-size:13.5px;list-style:none}
+.lexcard summary::-webkit-details-marker{display:none}
+.lexcard summary:before{content:'▸ ';color:var(--text3)}
+.lexcard[open] summary:before{content:'▾ '}
+.lexgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:3px 20px;font-size:12.5px;margin-top:12px}
+.lexgrid div{display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px dotted var(--line)}
+.covline{display:flex;align-items:baseline;gap:10px;margin-top:6px}
+.covbig{font-size:34px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums}
+.lnk{cursor:pointer;border-bottom:1px solid var(--line2)}
+.lnk:hover{color:var(--teal)}
 </style>
 </head>
 <body>
@@ -301,7 +340,7 @@ function ensureDay(date){
       workoutType: tpl==='weekday' ? (S.lastWorkoutType==='core'?'arms':'core') : null,
       wearable:{hrv:null,restingHR:null,recoveryPct:null,strain:null},
       heart:{rhr:null}, skin:{score:null,notes:''},
-      foods:[], deviations:[], checkinText:'', notes:'', hebeAge:null, updatedAt:0 };
+      foods:[], deviations:[], checkinText:'', notes:'', weightKg:null, hebeAge:null, updatedAt:0 };
   }
   return S.days[date];
 }
@@ -733,6 +772,229 @@ function extractJSON(txt){
   return m ? JSON.parse(m[0]) : null;
 }
 
+
+// ============================================================================
+//  NUTRITION ENGINE  (merged from the standalone suivi-alimentaire tracker)
+//
+//  Two halves that were separate until now:
+//    - HEBE scored food QUALITY (0-100, NOVA, flagged ingredients), no weights.
+//    - The tracker weighed food and computed 22 nutrients, no quality judgement.
+//  One log now does both: a food entry carries grams AND a score.
+//
+//  RULE (carried over from the tracker, and it matters more here, not less):
+//  a nutrient with no real measurement is null, never zero. A fabricated value
+//  would corrupt a CORRELATION, not just a daily total. Unknowns are counted
+//  and shown as unknown.
+//
+//  RULE: nutrition NEVER feeds computeHebeAge(). Biomarkers compute the age;
+//  nutrition is a labelled covariate displayed alongside it. If diet nudged the
+//  age, the number would stop being a measurement and start being circular.
+// ============================================================================
+
+// Per 100 g. Source: USDA FoodData Central (approximations). Not exact for any
+// specific piece of food - soil, wild vs farmed and brand all vary. Good for
+// spotting persistent gaps, not for chasing a single day's 5% difference.
+const ALIMENTS = {
+  saumon: {nom:"Saumon (cru)", en:"Salmon, raw", kcal:208,p:20,g:0,l:13,fib:0,
+    ca:9,fe:0.3,zn:0.4,mg:27,k:363,se:24,iod:15,ph:240,
+    va:12,vc:0,vd:11,ve:3.5,vk:0.1,b1:0.2,b2:0.4,b3:8,b6:0.6,b9:26,b12:3.2,cho:91,o3:2.2},
+  boeuf: {nom:"Bœuf haché extra maigre", en:"Beef, extra-lean ground", kcal:167,p:31,g:0,l:5,fib:0,
+    ca:12,fe:2.6,zn:6.3,mg:21,k:330,se:20,iod:1,ph:200,
+    va:0,vc:0,vd:0.1,ve:0.4,vk:1.2,b1:0.05,b2:0.2,b3:5.5,b6:0.4,b9:8,b12:2.5,cho:80,o3:0.03},
+  oeuf: {nom:"Œufs", en:"Eggs", kcal:143,p:12.6,g:0.7,l:9.9,fib:0,
+    ca:56,fe:1.8,zn:1.3,mg:12,k:138,se:30,iod:26,ph:198,
+    va:160,vc:0,vd:2,ve:1.1,vk:0.3,b1:0.04,b2:0.46,b3:0.07,b6:0.17,b9:47,b12:0.9,cho:294,o3:0.1},
+  legumineuses: {nom:"Légumineuses (cuites)", en:"Legumes, cooked", kcal:145,p:8.7,g:25,l:1.4,fib:7,
+    ca:49,fe:2.9,zn:1.5,mg:48,k:291,se:3.7,iod:1,ph:168,
+    va:1,vc:1.3,vd:0,ve:0.35,vk:4,b1:0.12,b2:0.06,b3:0.5,b6:0.14,b9:172,b12:0,cho:43,o3:0.04},
+  avocat: {nom:"Avocat (sans peau)", en:"Avocado, no skin or pit", kcal:160,p:2,g:9,l:15,fib:6.7,
+    ca:12,fe:0.55,zn:0.64,mg:29,k:485,se:0.4,iod:1,ph:52,
+    va:7,vc:10,vd:0,ve:2.1,vk:21,b1:0.07,b2:0.13,b3:1.7,b6:0.26,b9:81,b12:0,cho:14,o3:0.11},
+  suif: {nom:"Suif de bœuf", en:"Beef tallow", kcal:902,p:0,g:0,l:100,fib:0,
+    ca:0,fe:0,zn:0,mg:0,k:0,se:0,iod:0,ph:0,
+    va:0,vc:0,vd:0,ve:2.7,vk:1.1,b1:0,b2:0,b3:0,b6:0,b9:0,b12:0,cho:0,o3:0.6},
+  huilecoco: {nom:"Huile de coco", en:"Coconut oil", kcal:862,p:0,g:0,l:100,fib:0,
+    ca:0,fe:0.05,zn:0,mg:0,k:0,se:0,iod:0,ph:0,
+    va:0,vc:0,vd:0,ve:0.1,vk:0.5,b1:0,b2:0,b3:0,b6:0,b9:0,b12:0,cho:0,o3:0},
+  banane: {nom:"Banane", en:"Banana", kcal:89,p:1.1,g:23,l:0.3,fib:2.6,
+    ca:5,fe:0.26,zn:0.15,mg:27,k:358,se:1,iod:1,ph:22,
+    va:3,vc:8.7,vd:0,ve:0.1,vk:0.5,b1:0.03,b2:0.07,b3:0.67,b6:0.37,b9:20,b12:0,cho:9.8,o3:0.03},
+  miel: {nom:"Miel cru", en:"Raw honey", kcal:304,p:0.3,g:82,l:0,fib:0.2,
+    ca:6,fe:0.42,zn:0.22,mg:2,k:52,se:0.8,iod:0,ph:4,
+    va:0,vc:0.5,vd:0,ve:0,vk:0,b1:0,b2:0.04,b3:0.12,b6:0.02,b9:2,b12:0,cho:2.2,o3:0},
+  cacao: {nom:"Cacao en poudre", en:"Cocoa powder", kcal:228,p:20,g:58,l:14,fib:33,
+    ca:128,fe:13.9,zn:6.8,mg:499,k:1524,se:14,iod:0,ph:734,
+    va:0,vc:0,vd:0,ve:0.1,vk:2.5,b1:0.08,b2:0.24,b3:2.2,b6:0.12,b9:32,b12:0,cho:12,o3:0.1},
+  grana: {nom:"Grana Padano", en:"Grana Padano", kcal:398,p:33,g:0,l:29,fib:0,
+    ca:1100,fe:0.3,zn:4,mg:50,k:100,se:25,iod:35,ph:700,
+    va:200,vc:0,vd:0.5,ve:0.5,vk:2,b1:0.03,b2:0.3,b3:0.1,b6:0.09,b9:7,b12:1.5,cho:15,o3:0.4},
+  parmesan: {nom:"Parmigiano Reggiano", en:"Parmigiano Reggiano", kcal:392,p:36,g:3.2,l:26,fib:0,
+    ca:1184,fe:0.8,zn:2.7,mg:44,k:92,se:23,iod:35,ph:694,
+    va:207,vc:0,vd:0.5,ve:0.4,vk:1.7,b1:0.03,b2:0.33,b3:0.27,b6:0.09,b9:7,b12:1.2,cho:15,o3:0.4},
+  sardines: {nom:"Sardines (avec arêtes)", en:"Sardines, with bones", kcal:208,p:25,g:0,l:11,fib:0,
+    ca:382,fe:2.9,zn:1.3,mg:39,k:397,se:53,iod:35,ph:490,
+    va:32,vc:0,vd:4.8,ve:2,vk:2.6,b1:0.08,b2:0.23,b3:5.2,b6:0.17,b9:10,b12:8.9,cho:75,o3:1.5},
+  patate: {nom:"Patate douce", en:"Sweet potato", kcal:86,p:1.6,g:20,l:0.1,fib:3,
+    ca:30,fe:0.6,zn:0.3,mg:25,k:337,se:0.6,iod:1,ph:47,
+    va:709,vc:2.4,vd:0,ve:0.26,vk:1.8,b1:0.08,b2:0.06,b3:0.56,b6:0.2,b9:11,b12:0,cho:12,o3:0.01},
+  brocoli: {nom:"Brocoli", en:"Broccoli", kcal:34,p:2.8,g:7,l:0.4,fib:2.6,
+    ca:47,fe:0.7,zn:0.4,mg:21,k:316,se:2.5,iod:1,ph:66,
+    va:31,vc:89,vd:0,ve:0.78,vk:102,b1:0.07,b2:0.12,b3:0.64,b6:0.18,b9:63,b12:0,cho:19,o3:0.13},
+  kale: {nom:"Chou frisé (kale)", en:"Kale", kcal:49,p:4.3,g:9,l:0.9,fib:3.6,
+    ca:150,fe:1.5,zn:0.4,mg:47,k:491,se:0.9,iod:1,ph:92,
+    va:500,vc:120,vd:0,ve:1.5,vk:390,b1:0.11,b2:0.13,b3:1,b6:0.27,b9:141,b12:0,cho:0.8,o3:0.18},
+  macadamia: {nom:"Noix de macadamia", en:"Macadamia nuts", kcal:718,p:8,g:14,l:76,fib:8.6,
+    ca:85,fe:3.7,zn:1.3,mg:130,k:368,se:3.6,iod:0,ph:188,
+    va:0,vc:1.2,vd:0,ve:0.54,vk:0,b1:1.2,b2:0.16,b3:2.5,b6:0.28,b9:11,b12:0,cho:47,o3:0.21},
+  pain: {nom:"Pain au levain (seigle)", en:"Rye sourdough bread", kcal:259,p:9,g:48,l:3.3,fib:5.8,
+    ca:73,fe:2.8,zn:1.2,mg:40,k:166,se:30,iod:2,ph:125,
+    va:0,vc:0.4,vd:0,ve:0.3,vk:1.2,b1:0.3,b2:0.2,b3:2.9,b6:0.07,b9:30,b12:0,cho:15,o3:0.08},
+  barre: {nom:"Barre Fix Fuel (43 g = 1)", en:"Fix Fuel bar (43 g = 1)", kcal:419,p:9.3,g:56,l:18.6,fib:9.3,
+    ca:60,fe:2.5,zn:1.5,mg:100,k:500,se:2,iod:0,ph:180,
+    va:0,vc:0.5,vd:0,ve:6,vk:1,b1:0.1,b2:0.3,b3:1.5,b6:0.1,b9:30,b12:0,cho:20,o3:0.6}
+};
+
+// RDA, adult male 19-50. `role` and `src` stay in French on purpose: the detail
+// text is Kanish's daily TCF reading, and it is real prose, not label fragments.
+const NUTRIMENTS = [
+  {cle:"fib", nom:"Fibre",       fr:"les fibres",      unite:"g",  cible:38,   grp:"macro",
+   role:"Nourrit le microbiote, ralentit le glucose, protège le cœur.", src:"Légumineuses, avocat, cacao"},
+  {cle:"ca",  nom:"Calcium",     fr:"le calcium",      unite:"mg", cible:1000, grp:"mineral",
+   role:"Os et densité osseuse — priorité longévité. Ton point faible sans produits laitiers.", src:"Grana Padano, sardines avec arêtes, kale"},
+  {cle:"fe",  nom:"Iron",        fr:"le fer",          unite:"mg", cible:8,    grp:"mineral",
+   role:"Transport de l'oxygène. Une carence se voit à l'endurance sur le vélo.", src:"Bœuf, cacao, légumineuses"},
+  {cle:"zn",  nom:"Zinc",        fr:"le zinc",         unite:"mg", cible:11,   grp:"mineral",
+   role:"Immunité, testostérone, réparation de la peau. Faible les jours sans viande rouge.", src:"Bœuf, cacao, Grana Padano"},
+  {cle:"mg",  nom:"Magnesium",   fr:"le magnésium",    unite:"mg", cible:400,  grp:"mineral",
+   role:"Sommeil, récupération musculaire, plus de 300 réactions enzymatiques.", src:"Cacao, légumineuses, avocat"},
+  {cle:"k",   nom:"Potassium",   fr:"le potassium",    unite:"mg", cible:3400, grp:"mineral",
+   role:"Tension artérielle et contraction musculaire. Compense le sodium.", src:"Avocat, banane, légumineuses"},
+  {cle:"se",  nom:"Selenium",    fr:"le sélénium",     unite:"µg", cible:55,   grp:"mineral",
+   role:"Antioxydant, thyroïde. Protège contre le stress oxydatif.", src:"Saumon, œufs, sardines"},
+  {cle:"iod", nom:"Iodine",      fr:"l'iode",          unite:"µg", cible:150,  grp:"mineral",
+   role:"Thyroïde et métabolisme. Facile à combler avec du sel iodé.", src:"Œufs, poisson, sel iodé"},
+  {cle:"ph",  nom:"Phosphorus",  fr:"le phosphore",    unite:"mg", cible:700,  grp:"mineral",
+   role:"Os, avec le calcium. Doit rester équilibré, pas dominant.", src:"Fromage, poisson, œufs"},
+  {cle:"va",  nom:"Vitamin A",   fr:"la vitamine A",   unite:"µg", cible:900,  grp:"vitamine",
+   role:"Peau, vision, renouvellement cellulaire. Le rétinol alimentaire.", src:"Œufs, patate douce, kale"},
+  {cle:"vc",  nom:"Vitamin C",   fr:"la vitamine C",   unite:"mg", cible:90,   grp:"vitamine",
+   role:"Collagène et antioxydant — important pour la peau.", src:"Brocoli, kale, avocat"},
+  {cle:"vd",  nom:"Vitamin D",   fr:"la vitamine D",   unite:"µg", cible:15,   grp:"vitamine",
+   role:"Sans elle, le calcium ne s'absorbe pas. Tu évites le soleil, donc tout vient de l'alimentation.", src:"Saumon, sardines, œufs"},
+  {cle:"ve",  nom:"Vitamin E",   fr:"la vitamine E",   unite:"mg", cible:15,   grp:"vitamine",
+   role:"Protège les graisses des cellules de l'oxydation. Peau et vieillissement.", src:"Avocat, amandes, saumon"},
+  {cle:"vk",  nom:"Vitamin K",   fr:"la vitamine K",   unite:"µg", cible:120,  grp:"vitamine",
+   role:"Dirige le calcium vers les os, pas vers les artères. Travaille avec la vitamine D.", src:"Kale, brocoli, avocat"},
+  {cle:"b1",  nom:"Vitamin B1",  fr:"la vitamine B1",  unite:"mg", cible:1.2,  grp:"vitamine",
+   role:"Transforme les glucides en énergie.", src:"Macadamia, pain au levain"},
+  {cle:"b2",  nom:"Vitamin B2",  fr:"la vitamine B2",  unite:"mg", cible:1.3,  grp:"vitamine",
+   role:"Production d'énergie cellulaire.", src:"Œufs, fromage, bœuf"},
+  {cle:"b3",  nom:"Vitamin B3",  fr:"la vitamine B3",  unite:"mg", cible:16,   grp:"vitamine",
+   role:"Métabolisme et réparation de l'ADN. Précurseur du NAD+, lié au vieillissement.", src:"Saumon, bœuf, sardines"},
+  {cle:"b6",  nom:"Vitamin B6",  fr:"la vitamine B6",  unite:"mg", cible:1.3,  grp:"vitamine",
+   role:"Métabolisme des protéines. Nécessaire avec ton apport élevé.", src:"Saumon, banane, avocat"},
+  {cle:"b9",  nom:"Folate (B9)", fr:"le folate",       unite:"µg", cible:400,  grp:"vitamine",
+   role:"Division cellulaire et réparation de l'ADN.", src:"Légumineuses, kale, avocat"},
+  {cle:"b12", nom:"Vitamin B12", fr:"la vitamine B12", unite:"µg", cible:2.4,  grp:"vitamine",
+   role:"Nerfs et globules rouges. Uniquement dans les produits animaux.", src:"Sardines, saumon, bœuf"},
+  {cle:"cho", nom:"Choline",     fr:"la choline",      unite:"mg", cible:550,  grp:"vitamine",
+   role:"Cerveau et foie. La plupart des gens en manquent — pas toi, grâce aux œufs.", src:"Œufs, saumon, bœuf"},
+  {cle:"o3",  nom:"Omega-3",     fr:"les oméga-3",     unite:"g",  cible:1.6,  grp:"macro",
+   role:"Anti-inflammatoire. Un des liens les plus solides avec la longévité.", src:"Saumon, sardines"}
+];
+
+const NUT_GROUPES = [
+  {cle:"macro",    titre:"Fibre and fatty acids", fr:"Fibres et acides gras"},
+  {cle:"mineral",  titre:"Minerals",              fr:"Minéraux"},
+  {cle:"vitamine", titre:"Vitamins",              fr:"Vitamines"}
+];
+
+const MACRO_CIBLES = {
+  weekday: {kcal:2800, p:150, g:190, l:125},
+  weekend: {kcal:2300, p:145, g:120, l:110}
+};
+
+const LEXIQUE = [
+  ["le poids","weight"],["peser","to weigh"],["la balance","the scale"],["cru / cuit","raw / cooked"],
+  ["les protéines","protein"],["les glucides","carbohydrates"],["les lipides","fats"],["les fibres","fiber"],
+  ["un apport","an intake"],["une carence","a deficiency"],["un excès","an excess"],["l'objectif","the target"],
+  ["atteindre","to reach"],["combler","to close (a gap)"],["une source","a source"],["absorber","to absorb"],
+  ["le fer","iron"],["le cuivre","copper"],["l'iode","iodine"],["la densité osseuse","bone density"],
+  ["le microbiote","gut microbiome"],["anti-inflammatoire","anti-inflammatory"],["la prise de masse","bulking"],
+  ["le jeûne","fasting"],["le métabolisme de base","basal metabolic rate"],["l'entretien","maintenance"],
+  ["un surplus","a surplus"],["la tendance","the trend"]
+];
+
+// ---------- nutrition maths ----------
+
+// Open Food Facts gives reliable macros but patchy micronutrients, and its
+// _100g unit conventions vary by field. Rather than risk a silent unit error
+// that would poison a correlation, packaged foods contribute macros + fibre
+// only; their micros stay null (= unknown, shown as unknown, never zero).
+function nutrientsFromOFF(n){
+  if(!n) return null;
+  const num = v => (typeof v === 'number' && isFinite(v)) ? v : null;
+  const out = { kcal:num(n['energy-kcal_100g']), p:num(n.proteins_100g),
+                g:num(n.carbohydrates_100g), l:num(n.fat_100g), fib:num(n.fiber_100g) };
+  if(out.kcal===null && out.p===null && out.g===null && out.l===null) return null;
+  return out;
+}
+
+// Totals over every food on the day that has BOTH a weight and nutrient data.
+// Returns per-nutrient value plus how many weighed entries had no data for it,
+// so "unknown" can be shown as unknown instead of quietly counting as zero.
+function dayNutrition(date){
+  const d = S.days[date];
+  const t = {kcal:0,p:0,g:0,l:0};
+  const inconnu = {}; const gramsWeighed = {grams:0, entries:0, estimated:0};
+  NUTRIMENTS.forEach(n=>{ t[n.cle]=0; inconnu[n.cle]=0; });
+  if(!d) return {t, inconnu, ...gramsWeighed, any:false};
+  (d.foods||[]).forEach(f=>{
+    if(!f.grams || !f.nutrients) return;
+    const a = f.nutrients, fac = f.grams/100;
+    gramsWeighed.grams += f.grams; gramsWeighed.entries++;
+    if(f.est) gramsWeighed.estimated++;
+    ['kcal','p','g','l'].forEach(k=>{ if(typeof a[k]==='number') t[k] += a[k]*fac; });
+    NUTRIMENTS.forEach(n=>{
+      const v = a[n.cle];
+      if(typeof v === 'number') t[n.cle] += v*fac;
+      else inconnu[n.cle]++;
+    });
+  });
+  return {t, inconnu, grams:gramsWeighed.grams, entries:gramsWeighed.entries,
+          estimated:gramsWeighed.estimated, any:gramsWeighed.entries>0};
+}
+
+// How many of the 22 hit their target today. This is the covariate surfaced on
+// Home. It is DISPLAYED next to the HEBE age; it is never an input to it.
+function nutritionCoverage(date){
+  const {t, any} = dayNutrition(date);
+  if(!any) return null;
+  const hit = NUTRIMENTS.filter(n => t[n.cle]/n.cible >= 1).length;
+  const short = NUTRIMENTS.map(n=>({n, pct:t[n.cle]/n.cible}))
+                          .filter(x=>x.pct<0.7).sort((a,b)=>a.pct-b.pct);
+  return {hit, total:NUTRIMENTS.length, short};
+}
+
+// Mifflin-St Jeor. Returns null unless weight, height and age all exist -
+// no estimate stands in for a missing measurement.
+function bmrFor(date){
+  const d = S.days[date]; if(!d || !d.weightKg) return null;
+  const h = S.settings.heightCm, a = chronoAge(date);
+  if(!h || !a) return null;
+  return 10*d.weightKg + 6.25*h - 5*a + 5;
+}
+
+// Weight trend across every day actually weighed.
+function weightTrend(){
+  const pts = Object.keys(S.days).filter(k=>S.days[k] && S.days[k].weightKg).sort();
+  if(pts.length<2) return {n:pts.length, delta:null, days:null};
+  const a=pts[0], b=pts[pts.length-1];
+  return {n:pts.length,
+          delta: Math.round((S.days[b].weightKg - S.days[a].weightKg)*10)/10,
+          days: Math.round((new Date(b+'T12:00:00')-new Date(a+'T12:00:00'))/864e5)};
+}
+
 // ---------- food ----------
 async function offSearch(q){
   const url = 'https://world.openfoodfacts.org/cgi/search.pl?search_terms='+encodeURIComponent(q)+'&search_simple=1&action=process&json=1&page_size=8&fields=product_name,brands,code,ingredients_text,nutriments,nutriscore_grade,nova_group';
@@ -765,14 +1027,46 @@ async function scoreFood(name, ingredients, product){
     return { score:clamp(Math.round(p.score),0,100), flagged:p.flagged||[], summary:p.summary||'', nova:(p.nova!=null?Number(p.nova):null), confidence:p.confidence||'med', basis:p.basis||'', src:'ai' };
   }catch(e){ console.warn(e); toast('AI scoring failed — used built-in scorer'); return heuristicScore(name, ingredients, product); }
 }
-async function addFood(name, product){
+async function addFood(name, product, grams, est){
+  // Weight comes from the shared grams field unless a caller supplies it, so
+  // every route into the log - search, barcode, AI-only - carries a weight.
+  if(grams===undefined){
+    const el = document.getElementById('nQty');
+    const v = el ? parseFloat(el.value) : NaN;
+    grams = (isFinite(v) && v>0) ? v : null;
+    const ee = document.getElementById('nEst');
+    est = ee ? ee.checked : false;
+  }
   toast('Scoring "'+name+'"…');
   const res = await scoreFood(name, product?product.ingredients_text:'', product);
   const n = product&&product.nutriments||{};
   const d = ensureDay(S.date);
-  d.foods.push({ name, barcode:product?product.code:null, score:res.score, flagged:res.flagged.map(f=>f.ingredient), details:res.flagged, summary:res.summary, nova:res.nova??null, confidence:res.confidence||'med', basis:res.basis||'', src:(product?'off+':'')+res.src, kcal:n['energy-kcal_100g']??null, protein:n.proteins_100g??null, sugar:n.sugars_100g??null, ts:Date.now() });
+  d.foods.push({ name, barcode:product?product.code:null, score:res.score, flagged:res.flagged.map(f=>f.ingredient), details:res.flagged, summary:res.summary, nova:res.nova??null, confidence:res.confidence||'med', basis:res.basis||'', src:(product?'off+':'')+res.src,
+    grams: grams, est: !!est, nutrients: nutrientsFromOFF(n), nutSrc: product?'off':null,
+    kcal:n['energy-kcal_100g']??null, protein:n.proteins_100g??null, sugar:n.sugars_100g??null, ts:Date.now() });
+  const q = document.getElementById('nQty'); if(q) q.value='';
+  const e2 = document.getElementById('nEst'); if(e2) e2.checked=false;
   saveDay(S.date); render();
-  toast('Added — '+res.score+'/100');
+  toast('Added — '+res.score+'/100'+(grams?' · '+grams+' g':''));
+}
+
+// A staple from the local table. Full 22-nutrient data, and deliberately NO
+// quality score: an unprocessed whole food is NOVA 1 by definition, so a number
+// there would be decoration. The daily average then measures the quality of the
+// processed things eaten, which is the part that actually varies.
+function addWholeFood(key, grams, est){
+  const a = ALIMENTS[key];
+  if(!a) return;
+  if(!grams || grams<=0){ const q=document.getElementById('nQty'); if(q) q.focus(); return; }
+  const d = ensureDay(S.date);
+  d.foods.push({ name:a.en, nomFr:a.nom, key:key, grams:grams, est:!!est,
+    nutrients:a, nutSrc:'table', score:null, flagged:[], details:[], summary:'',
+    nova:1, confidence:'high', basis:'whole food, weighed', src:'table',
+    kcal:a.kcal, protein:a.p, sugar:null, ts:Date.now() });
+  const q = document.getElementById('nQty'); if(q) q.value='';
+  const e2 = document.getElementById('nEst'); if(e2) e2.checked=false;
+  saveDay(S.date); render();
+  toast(a.nom+' — '+grams+' g');
 }
 function repeatOffenders(rangeDays){
   const counts={}; const cutoff = rangeDays? Date.now()-rangeDays*864e5 : 0;
@@ -1149,6 +1443,25 @@ function renderHome(){
   h += '<div style="display:flex;flex-direction:column;gap:12px"><div class="insight">'+'<span style="color:var(--purple);flex-shrink:0;width:17px;margin-top:2px">'+ICONS.bulb+'</span><div><div class="t">'+(nConf>=7?'Pattern found':'Getting to know you')+'</div><div class="b">'+esc(insPick)+'</div></div></div>';
   if(st) h += '<div class="card"><h3>14-day pulse</h3><div class="sub" style="margin-top:6px;line-height:1.8">sleep '+st.sleepH.toFixed(1)+'h · train '+st.trainH.toFixed(1)+'h/day · lifts '+st.liftPerWk.toFixed(1)+'/wk · stress '+st.stress.toFixed(1)+'/10'+(st.foodAvg?' · food '+Math.round(st.foodAvg)+'/100':'')+'</div></div>';
   h += '</div></div>';
+
+  // Nutrition, shown beside the age and deliberately not inside it. Biomarkers
+  // compute the HEBE age; diet is tracked against it so a correlation can be
+  // read later. Feeding diet into the age would make the number circular.
+  const cov = nutritionCoverage(S.date);
+  h += '<div class="card mt fade covar"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">'
+    + '<h3>Nutrition today</h3><span class="badge gray">tracked alongside · not in the age</span></div>';
+  if(!cov){
+    h += '<div class="sub" style="margin-top:8px">Nothing weighed yet. <b data-page="fuel" class="lnk">Log a food with its weight</b> and the 22 nutrients fill in.</div>';
+  } else {
+    h += '<div class="covline"><span class="covbig">'+cov.hit+'</span><span class="sub">of '+cov.total+' nutrients at target</span></div>';
+    if(cov.short.length){
+      h += '<div class="sub" style="margin-top:8px">Furthest short: '
+        + cov.short.slice(0,3).map(x=>'<b>'+x.n.nom+'</b> '+Math.round(x.pct*100)+'%').join(' · ')+'</div>';
+    } else {
+      h += '<div class="sub" style="margin-top:8px">Every nutrient at target today.</div>';
+    }
+  }
+  h += '</div>';
   return h;
 }
 // Evening debrief block — grows the coach card after ~5pm.
@@ -1261,11 +1574,36 @@ function perfCharts(){
 function renderFuel(){
   const d = ensureDay(S.date);
   const off = repeatOffenders(30).slice(0,7);
-  const avg = d.foods.length? Math.round(d.foods.reduce((a,f)=>a+f.score,0)/d.foods.length):null;
+  // Whole foods carry no score by design, so the average measures the quality
+  // of the processed things - the part that actually varies day to day.
+  const scored = d.foods.filter(f=>typeof f.score==='number');
+  const avg = scored.length? Math.round(scored.reduce((a,f)=>a+f.score,0)/scored.length):null;
+  const N = dayNutrition(S.date);
+  const mc = MACRO_CIBLES[d.template] || MACRO_CIBLES.weekday;
   let h = topline();
+
+  // ---- row 1: one log, both halves ----
   h += '<div class="grid2 fade">';
-  h += '<div class="card"><h3>Log a food</h3><div style="display:flex;gap:8px;margin-top:9px"><input type="text" id="foodQ" placeholder="name it — or paste a barcode number"><button class="btn primary" id="foodGo">Search</button></div><div id="foodRes" style="margin-top:10px"></div>'
-    + (S.settings.apiKey?'':'<div class="sub" style="color:var(--amber);margin-top:8px">No API key — built-in scorer active. Add one in Setup.</div>')+'</div>';
+  h += '<div class="card"><h3>Log a food</h3>'
+    + '<div class="sub" style="margin-top:2px">Weigh it raw. Meat and fish lose 20-25% cooking; avocado without skin or pit.</div>'
+    + '<div class="logrow mt">'
+    +   '<input type="number" id="nQty" class="qty" min="0" step="1" placeholder="grams">'
+    +   '<label class="estbox"><input type="checkbox" id="nEst"><span>estimated</span></label>'
+    + '</div>'
+    + '<div class="logsub">Staples · full 22-nutrient data</div>'
+    + '<div class="logrow">'
+    +   '<select id="nPick">'+Object.entries(ALIMENTS).map(([k,a])=>'<option value="'+k+'">'+esc(a.nom)+'</option>').join('')+'</select>'
+    +   '<button class="btn primary" id="nAdd">Add</button>'
+    + '</div>'
+    + '<div class="logsub">Anything else · scored by ingredients</div>'
+    + '<div class="logrow">'
+    +   '<input type="text" id="foodQ" placeholder="name it — or paste a barcode">'
+    +   '<button class="btn" id="foodGo">Search</button>'
+    + '</div>'
+    + '<div id="foodRes" style="margin-top:10px"></div>'
+    + (S.settings.apiKey?'':'<div class="sub" style="color:var(--amber);margin-top:8px">No API key — built-in scorer active. Add one in Setup.</div>')
+    + '</div>';
+
   h += '<div class="card"><h3>Fasting rhythm</h3><div class="sub">today’s window: '+d.metrics.fastingH+' h'+(d.protocolId?' — protocol fast day':'')+'</div>'
     + '<div style="margin-top:12px;background:var(--card2);border-radius:99px;height:14px;position:relative;overflow:hidden">'
     + '<div style="position:absolute;left:0;top:0;bottom:0;width:'+Math.min(100,d.metrics.fastingH/24*100)+'%;background:var(--teal-bg)"></div>'
@@ -1273,23 +1611,118 @@ function renderFuel(){
     + '<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-top:4px"><span>fasted '+d.metrics.fastingH+'h</span><span>eating window</span></div>'
     + '<div class="chartbox mt" style="height:130px"><canvas id="chProtein"></canvas></div><div class="sub" style="font-size:11px">protein vs '+S.settings.proteinTarget+'g target · 14 days</div></div>';
   h += '</div>';
+
+  // ---- row 2: the log itself ----
   h += '<div class="grid2 mt fade">';
-  h += '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><h3>Today’s foods ('+d.foods.length+')</h3>'+(avg!=null?'<span class="scorepill" style="background:'+scoreCol(avg)+'22;color:'+scoreCol(avg)+'">avg '+avg+'</span>':'')+'</div><div style="margin-top:10px">';
+  h += '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><h3>Today’s foods ('+d.foods.length+')</h3>'
+    + (avg!=null?'<span class="scorepill" style="background:'+scoreCol(avg)+'22;color:'+scoreCol(avg)+'">avg '+avg+'</span>':'')+'</div><div style="margin-top:10px">';
   if(!d.foods.length) h+='<div class="sub">'+(d.protocolId?'Fast day — nothing to log is the plan.':'Nothing logged. Your 7pm meal takes 20 seconds to add.')+'</div>';
   d.foods.forEach((f,i)=>{
-    h += '<div class="foodrow"><div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><div style="min-width:0"><div style="font-weight:600;font-size:13.5px">'+esc(f.name)+'</div><div class="sub" style="font-size:11px">'+(f.kcal!=null?Math.round(f.kcal)+' kcal/100g · ':'')+(f.protein!=null?Math.round(f.protein)+'g prot · ':'')+esc(f.src||'')+'</div></div>'
-      + '<div style="display:flex;gap:8px;align-items:center;flex-shrink:0"><span class="scorepill" style="background:'+scoreCol(f.score)+'22;color:'+scoreCol(f.score)+'">'+f.score+'</span><button class="btn" data-delfood="'+i+'" style="padding:4px 9px;font-size:12px">✕</button></div></div>';
+    const grams = f.grams ? Math.round(f.grams)+' g' : null;
+    const kcal  = (f.grams && f.nutrients && typeof f.nutrients.kcal==='number') ? Math.round(f.nutrients.kcal*f.grams/100)+' kcal' : null;
+    const prot  = (f.grams && f.nutrients && typeof f.nutrients.p==='number') ? Math.round(f.nutrients.p*f.grams/100)+'g prot' : null;
+    const meta  = [grams, kcal, prot].filter(Boolean).join(' · ') || ((f.kcal!=null?Math.round(f.kcal)+' kcal/100g':'') + (f.protein!=null?' · '+Math.round(f.protein)+'g prot/100g':''));
+    h += '<div class="foodrow'+(f.est?' est':'')+'"><div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><div style="min-width:0">'
+      + '<div style="font-weight:600;font-size:13.5px">'+esc(f.nomFr||f.name)+(f.est?' <span class="esttag">estimé</span>':'')+'</div>'
+      + '<div class="sub" style="font-size:11px">'+esc(meta)+(meta?' · ':'')+esc(f.src||'')+'</div></div>'
+      + '<div style="display:flex;gap:8px;align-items:center;flex-shrink:0">'
+      + (typeof f.score==='number'
+          ? '<span class="scorepill" style="background:'+scoreCol(f.score)+'22;color:'+scoreCol(f.score)+'">'+f.score+'</span>'
+          : '<span class="scorepill whole">whole</span>')
+      + '<button class="btn" data-delfood="'+i+'" style="padding:4px 9px;font-size:12px">✕</button></div></div>';
     if((f.details||[]).length) h += '<div style="margin-top:6px">'+f.details.map(x=>'<span class="flag" title="'+esc(x.reason)+'">'+esc(x.ingredient)+'</span>').join('')+'</div>';
     if(f.basis||f.confidence){ const cc={high:'var(--teal)',med:'var(--amber)',low:'var(--text3)'}[f.confidence]||'var(--text3)'; h += '<div class="sub" style="font-size:10.5px;margin-top:5px;color:var(--text3)">'+(f.basis?esc(f.basis):'')+(f.confidence?' <span style="color:'+cc+'">· '+f.confidence+' confidence</span>':'')+'</div>'; }
     h += '</div>';
   });
   h += '</div></div>';
+
   h += '<div class="card"><h3>Repeat offenders · 30 days</h3><div style="margin-top:6px">';
   if(!off.length) h += '<div class="sub">No flagged ingredients yet. Keep it that way.</div>';
   off.forEach(([ing,n])=>{ h += '<div class="list-item"><span>'+esc(ing)+'</span><span class="badge coral">'+n+'×</span></div>'; });
   h += '</div></div></div>';
+
+  // ---- row 3: what the weights add up to, and the body they act on ----
+  h += '<div class="grid2 mt fade">';
+  h += '<div class="card"><h3>Macros from weighed food</h3>';
+  if(!N.any){
+    h += '<div class="sub" style="margin-top:8px">Nothing weighed yet today. Add a weight to a food and the totals appear here.</div>';
+  } else {
+    h += '<div class="sub" style="margin-top:2px">'+N.entries+' item'+(N.entries>1?'s':'')+' · '+Math.round(N.grams)+' g'
+      + (N.estimated?' · <span style="color:var(--amber)">'+N.estimated+' estimated</span>':'')+'</div>';
+    h += '<div class="macrogrid mt">';
+    [['Calories',Math.round(N.t.kcal),'',mc.kcal],['Protein',Math.round(N.t.p),'g',mc.p],
+     ['Carbs',Math.round(N.t.g),'g',mc.g],['Fat',Math.round(N.t.l),'g',mc.l]].forEach(([nm,v,u,tg])=>{
+      const pct = tg? v/tg : 0;
+      h += '<div class="macrocell"><div class="macroval">'+v+u+'</div><div class="sub" style="font-size:11px">'+nm+'</div>'
+        + '<div class="nbar"><i class="'+nutClass(pct)+'" style="width:'+Math.min(pct*100,100)+'%"></i></div>'
+        + '<div class="sub" style="font-size:10.5px;margin-top:4px">target '+tg+u+'</div></div>';
+    });
+    h += '</div>';
+  }
+  h += '</div>';
+
+  const bm = bmrFor(S.date), wt = weightTrend();
+  h += '<div class="card"><h3>Body &amp; energy</h3>'
+    + '<div class="sub" style="margin-top:2px">Weigh in the morning, fasted, after the bathroom.</div>'
+    + '<div class="logrow mt">'
+    +   '<input type="number" id="nWeight" class="qty" min="0" step="0.1" placeholder="kg" value="'+(d.weightKg??'')+'">'
+    +   '<input type="number" id="nHeight" class="qty" min="0" step="1" placeholder="height cm" value="'+(S.settings.heightCm??'')+'">'
+    + '</div>';
+  if(bm===null){
+    const miss=[]; if(!d.weightKg) miss.push('today’s weight'); if(!S.settings.heightCm) miss.push('your height');
+    if(!chronoAge(S.date)) miss.push('your date of birth (Setup)');
+    h += '<div class="sub mt">Missing '+miss.join(', ')+'. No burn figure is calculable without them, and an invented one would corrupt the correlations later — same rule as <b>estimé</b>.</div>';
+  } else {
+    h += '<div class="mt">';
+    h += '<div class="list-item"><span>Basal metabolic rate</span><b>'+Math.round(bm)+' kcal</b></div>';
+    if(N.any){
+      h += '<div class="list-item"><span>Logged intake</span><b>'+Math.round(N.t.kcal)+' kcal</b></div>';
+      h += '<div class="list-item"><span>Intake minus BMR</span><b>'+(N.t.kcal-bm>0?'+':'')+Math.round(N.t.kcal-bm)+' kcal</b></div>';
+      h += '<div class="list-item"><span>Protein per kg</span><b>'+(Math.round(N.t.p/d.weightKg*100)/100)+' g/kg</b></div>';
+    }
+    h += '</div>';
+  }
+  if(wt.delta!==null) h += '<div class="list-item"><span>Weight trend · '+wt.n+' weigh-ins over '+wt.days+' days</span><b>'+(wt.delta>0?'+':'')+wt.delta+' kg</b></div>';
+  h += '<div class="sub mt"><b>BMR is not your total burn.</b> Real expenditure depends on the ride, the gym and the rest — not honestly calculable without a device. The method that works: weigh every morning for three weeks, then read the trend against average intake. That is measured, not estimated.</div>';
+  h += '</div></div>';
+
+  // ---- row 4: the 22 ----
+  h += '<div class="card mt fade"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">'
+    + '<h3>Micronutrients</h3>'
+    + (N.any?'<span class="badge gray">'+NUTRIMENTS.filter(n=>N.t[n.cle]/n.cible>=1).length+' of '+NUTRIMENTS.length+' at target</span>':'')
+    + '</div>';
+  if(!N.any){
+    h += '<div class="sub" style="margin-top:8px">Weigh something and the 22 fill in. Nutrients are computed from weights only — a food logged without a weight scores for quality but cannot count toward a target.</div>';
+  } else {
+    h += '<div class="sub" style="margin-top:2px">Green at 100%. Click a nutrient for what it does and where to find it.</div>';
+    NUT_GROUPES.forEach(grp=>{
+      h += '<div class="nutgrp">'+grp.titre+' <span style="color:var(--text3)">· '+grp.fr+'</span></div>';
+      NUTRIMENTS.filter(n=>n.grp===grp.cle).forEach(n=>{
+        const v=N.t[n.cle], pct=v/n.cible, unk=N.inconnu[n.cle];
+        h += '<div class="nutrow" data-nut="'+n.cle+'">'
+          + '<div class="nuthead"><span class="nutname">'+n.nom+'</span>'
+          + '<span class="nutfig"><b>'+(v<10?Math.round(v*10)/10:Math.round(v))+'</b> / '+n.cible+' '+n.unite+' · '+Math.round(pct*100)+'%'
+          + (unk?' <span class="unk" title="'+unk+' weighed item(s) had no data for this nutrient — counted as unknown, not zero">+'+unk+' unknown</span>':'')
+          + '</span></div>'
+          + '<div class="nbar"><i class="'+nutClass(pct)+'" style="width:'+Math.min(pct*100,100)+'%"></i></div>'
+          + '<div class="nutdet"><em>À quoi ça sert.</em> '+n.role+'<br><em>Où le trouver.</em> '+n.src+'</div>'
+          + '</div>';
+      });
+    });
+    h += '<div class="sub mt">Packaged foods contribute macros and fibre only — Open Food Facts micronutrient coverage is patchy and its units vary by field, so guessing would risk a silent error. Those gaps show as <b>unknown</b>, never as zero.</div>';
+  }
+  h += '</div>';
+
+  // ---- row 5: the French stays ----
+  h += '<details class="card mt fade lexcard"><summary>Lexique — vocabulaire du suivi</summary><div class="lexgrid">'
+    + LEXIQUE.map(([fr,en])=>'<div><span>'+fr+'</span><span class="sub">'+en+'</span></div>').join('')
+    + '</div></details>';
+
   return h;
 }
+
+function nutClass(pct){ return pct>=1 ? 'ok' : pct>=0.7 ? 'mid' : 'low'; }
+
 function fuelCharts(){
   if(typeof Chart==='undefined') return;
   const dates = rangeDates(14);
@@ -1541,6 +1974,8 @@ document.addEventListener('click', e=>{
   if(dc){ const id=dc.dataset.chip; if(activeChips.has(id)){activeChips.delete(id);dc.classList.remove('on');} else {activeChips.add(id);dc.classList.add('on');} return; }
   const del = e.target.closest('[data-delfood]');
   if(del){ const d=ensureDay(S.date); d.foods.splice(+del.dataset.delfood,1); saveDay(S.date); render(); return; }
+  const nh = e.target.closest('.nuthead');
+  if(nh){ nh.parentElement.classList.toggle('open'); return; }
   if(e.target.id==='modalBg' && !onboardingOpen) hideModal();
   const t = e.target.closest('button, label'); if(!t) return;
   switch(t.id){
@@ -1559,6 +1994,9 @@ document.addEventListener('click', e=>{
     case 'reopenCheckin': { const d=ensureDay(S.date); d.confirmed=false; checkinOpen=true; render(); break; }
     case 'coachAiBtn': t.disabled=true; t.textContent='Thinking…'; coachAI().catch(err=>{toast('Coach failed: '+err.message); render();}); break;
     case 'foodGo': doFoodSearch(); break;
+    case 'nAdd': { const k=(document.getElementById('nPick')||{}).value;
+      const v=parseFloat((document.getElementById('nQty')||{}).value);
+      addWholeFood(k, (isFinite(v)&&v>0)?v:null, (document.getElementById('nEst')||{}).checked); break; }
     case 'saveHeart': { const d=ensureDay(S.date);
       const r=+document.getElementById('rhrIn').value||null, hv=+document.getElementById('hrvIn').value||null;
       d.heart.rhr=r; d.wearable.hrv=hv; if(r) d.wearable.restingHR=r;
@@ -1593,6 +2031,10 @@ document.addEventListener('input', e=>{
 });
 document.addEventListener('change', e=>{
   if(e.target.id==='importFile') doImport(e.target.files[0]);
+  if(e.target.id==='nWeight'){ const d=ensureDay(S.date); const v=parseFloat(e.target.value);
+    d.weightKg=(isFinite(v)&&v>0)?v:null; saveDay(S.date); render(); return; }
+  if(e.target.id==='nHeight'){ const v=parseFloat(e.target.value);
+    S.settings.heightCm=(isFinite(v)&&v>0)?v:null; persist(); pushSettings(); render(); return; }
   if(e.target.id==='ovSleep'||e.target.id==='ovLoad'){ destroyCharts(); reportCharts(); }
   if(e.target.id==='setTheme'){ S.settings.theme=e.target.value; persist(); applyTheme(); render(); }
 });
