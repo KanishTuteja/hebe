@@ -166,6 +166,23 @@ nav.bottom{display:none}
 .covbig{font-size:34px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums}
 .lnk{cursor:pointer;border-bottom:1px solid var(--line2)}
 .lnk:hover{color:var(--teal)}
+
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;margin-bottom:4px}
+.seg button{border:none;background:var(--card2);color:var(--text3);font-family:inherit;font-size:12.5px;font-weight:600;padding:7px 14px;cursor:pointer;border-right:1px solid var(--line)}
+.seg button:last-child{border-right:none}
+.seg button.on{background:var(--teal-bg);color:var(--teal)}
+.portgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:8px}
+.portchip{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:1px;background:var(--card2);border:1px solid var(--line);border-radius:11px;padding:11px 12px;cursor:pointer;font-family:inherit;text-align:left;transition:border-color .15s,background .15s}
+.portchip:hover{border-color:var(--teal)}
+.portchip.on{border-color:var(--teal);background:var(--teal-bg)}
+.pico{font-size:19px;line-height:1.1}
+.plab{font-size:13px;font-weight:600;color:var(--text)}
+.pof{font-size:10.5px;color:var(--text3);line-height:1.3}
+.pcount{position:absolute;top:8px;right:9px;background:var(--teal);color:#fff;font-size:11px;font-weight:700;min-width:19px;height:19px;border-radius:99px;display:flex;align-items:center;justify-content:center;padding:0 5px}
+.portsum{margin-top:10px;font-size:12.5px;color:var(--text2)}
+.portsum b{color:var(--text);font-variant-numeric:tabular-nums}
+button.pclear{background:none;border:none;color:var(--text3);font-family:inherit;font-size:12px;padding:0 0 0 6px;cursor:pointer}
+button.pclear:hover{color:var(--coral)}
 </style>
 </head>
 <body>
@@ -273,7 +290,7 @@ const todayStr = () => dstr(new Date());
 let S = {
   page:'home', date:todayStr(), trendRange:30,
   days:{},
-  settings:{ dob:DOB_DEFAULT, name:'Kanish', apiKey:DEFAULT_API_KEY, model:'claude-sonnet-5', proteinTarget:135, theme:'light', fbConfig:'', coachBio:OWNER_BIO },
+  settings:{ dob:DOB_DEFAULT, name:'Kanish', apiKey:DEFAULT_API_KEY, model:'claude-sonnet-5', proteinTarget:135, sex:'male', theme:'light', fbConfig:'', coachBio:OWNER_BIO },
   onboarded:true,
   templates: JSON.parse(JSON.stringify(TEMPLATE_DEFAULTS)),
   protocols: [],
@@ -857,49 +874,49 @@ const ALIMENTS = {
 // RDA, adult male 19-50. `role` and `src` stay in French on purpose: the detail
 // text is Kanish's daily TCF reading, and it is real prose, not label fragments.
 const NUTRIMENTS = [
-  {cle:"fib", nom:"Fibre",       fr:"les fibres",      unite:"g",  cible:38,   grp:"macro",
+  {cle:"fib", nom:"Fibre",       fr:"les fibres",      unite:"g",  cible:{m:38,f:25},   grp:"macro",
    role:"Nourrit le microbiote, ralentit le glucose, protège le cœur.", src:"Légumineuses, avocat, cacao"},
-  {cle:"ca",  nom:"Calcium",     fr:"le calcium",      unite:"mg", cible:1000, grp:"mineral",
+  {cle:"ca",  nom:"Calcium",     fr:"le calcium",      unite:"mg", cible:{m:1000,f:1000}, grp:"mineral",
    role:"Os et densité osseuse — priorité longévité. Ton point faible sans produits laitiers.", src:"Grana Padano, sardines avec arêtes, kale"},
-  {cle:"fe",  nom:"Iron",        fr:"le fer",          unite:"mg", cible:8,    grp:"mineral",
+  {cle:"fe",  nom:"Iron",        fr:"le fer",          unite:"mg", cible:{m:8,f:18},    grp:"mineral",
    role:"Transport de l'oxygène. Une carence se voit à l'endurance sur le vélo.", src:"Bœuf, cacao, légumineuses"},
-  {cle:"zn",  nom:"Zinc",        fr:"le zinc",         unite:"mg", cible:11,   grp:"mineral",
+  {cle:"zn",  nom:"Zinc",        fr:"le zinc",         unite:"mg", cible:{m:11,f:8},   grp:"mineral",
    role:"Immunité, testostérone, réparation de la peau. Faible les jours sans viande rouge.", src:"Bœuf, cacao, Grana Padano"},
-  {cle:"mg",  nom:"Magnesium",   fr:"le magnésium",    unite:"mg", cible:400,  grp:"mineral",
+  {cle:"mg",  nom:"Magnesium",   fr:"le magnésium",    unite:"mg", cible:{m:400,f:310},  grp:"mineral",
    role:"Sommeil, récupération musculaire, plus de 300 réactions enzymatiques.", src:"Cacao, légumineuses, avocat"},
-  {cle:"k",   nom:"Potassium",   fr:"le potassium",    unite:"mg", cible:3400, grp:"mineral",
+  {cle:"k",   nom:"Potassium",   fr:"le potassium",    unite:"mg", cible:{m:3400,f:2600}, grp:"mineral",
    role:"Tension artérielle et contraction musculaire. Compense le sodium.", src:"Avocat, banane, légumineuses"},
-  {cle:"se",  nom:"Selenium",    fr:"le sélénium",     unite:"µg", cible:55,   grp:"mineral",
+  {cle:"se",  nom:"Selenium",    fr:"le sélénium",     unite:"µg", cible:{m:55,f:55},   grp:"mineral",
    role:"Antioxydant, thyroïde. Protège contre le stress oxydatif.", src:"Saumon, œufs, sardines"},
-  {cle:"iod", nom:"Iodine",      fr:"l'iode",          unite:"µg", cible:150,  grp:"mineral",
+  {cle:"iod", nom:"Iodine",      fr:"l'iode",          unite:"µg", cible:{m:150,f:150},  grp:"mineral",
    role:"Thyroïde et métabolisme. Facile à combler avec du sel iodé.", src:"Œufs, poisson, sel iodé"},
-  {cle:"ph",  nom:"Phosphorus",  fr:"le phosphore",    unite:"mg", cible:700,  grp:"mineral",
+  {cle:"ph",  nom:"Phosphorus",  fr:"le phosphore",    unite:"mg", cible:{m:700,f:700},  grp:"mineral",
    role:"Os, avec le calcium. Doit rester équilibré, pas dominant.", src:"Fromage, poisson, œufs"},
-  {cle:"va",  nom:"Vitamin A",   fr:"la vitamine A",   unite:"µg", cible:900,  grp:"vitamine",
+  {cle:"va",  nom:"Vitamin A",   fr:"la vitamine A",   unite:"µg", cible:{m:900,f:700},  grp:"vitamine",
    role:"Peau, vision, renouvellement cellulaire. Le rétinol alimentaire.", src:"Œufs, patate douce, kale"},
-  {cle:"vc",  nom:"Vitamin C",   fr:"la vitamine C",   unite:"mg", cible:90,   grp:"vitamine",
+  {cle:"vc",  nom:"Vitamin C",   fr:"la vitamine C",   unite:"mg", cible:{m:90,f:75},   grp:"vitamine",
    role:"Collagène et antioxydant — important pour la peau.", src:"Brocoli, kale, avocat"},
-  {cle:"vd",  nom:"Vitamin D",   fr:"la vitamine D",   unite:"µg", cible:15,   grp:"vitamine",
+  {cle:"vd",  nom:"Vitamin D",   fr:"la vitamine D",   unite:"µg", cible:{m:15,f:15},   grp:"vitamine",
    role:"Sans elle, le calcium ne s'absorbe pas. Tu évites le soleil, donc tout vient de l'alimentation.", src:"Saumon, sardines, œufs"},
-  {cle:"ve",  nom:"Vitamin E",   fr:"la vitamine E",   unite:"mg", cible:15,   grp:"vitamine",
+  {cle:"ve",  nom:"Vitamin E",   fr:"la vitamine E",   unite:"mg", cible:{m:15,f:15},   grp:"vitamine",
    role:"Protège les graisses des cellules de l'oxydation. Peau et vieillissement.", src:"Avocat, amandes, saumon"},
-  {cle:"vk",  nom:"Vitamin K",   fr:"la vitamine K",   unite:"µg", cible:120,  grp:"vitamine",
+  {cle:"vk",  nom:"Vitamin K",   fr:"la vitamine K",   unite:"µg", cible:{m:120,f:90},  grp:"vitamine",
    role:"Dirige le calcium vers les os, pas vers les artères. Travaille avec la vitamine D.", src:"Kale, brocoli, avocat"},
-  {cle:"b1",  nom:"Vitamin B1",  fr:"la vitamine B1",  unite:"mg", cible:1.2,  grp:"vitamine",
+  {cle:"b1",  nom:"Vitamin B1",  fr:"la vitamine B1",  unite:"mg", cible:{m:1.2,f:1.1},  grp:"vitamine",
    role:"Transforme les glucides en énergie.", src:"Macadamia, pain au levain"},
-  {cle:"b2",  nom:"Vitamin B2",  fr:"la vitamine B2",  unite:"mg", cible:1.3,  grp:"vitamine",
+  {cle:"b2",  nom:"Vitamin B2",  fr:"la vitamine B2",  unite:"mg", cible:{m:1.3,f:1.1},  grp:"vitamine",
    role:"Production d'énergie cellulaire.", src:"Œufs, fromage, bœuf"},
-  {cle:"b3",  nom:"Vitamin B3",  fr:"la vitamine B3",  unite:"mg", cible:16,   grp:"vitamine",
+  {cle:"b3",  nom:"Vitamin B3",  fr:"la vitamine B3",  unite:"mg", cible:{m:16,f:14},   grp:"vitamine",
    role:"Métabolisme et réparation de l'ADN. Précurseur du NAD+, lié au vieillissement.", src:"Saumon, bœuf, sardines"},
-  {cle:"b6",  nom:"Vitamin B6",  fr:"la vitamine B6",  unite:"mg", cible:1.3,  grp:"vitamine",
+  {cle:"b6",  nom:"Vitamin B6",  fr:"la vitamine B6",  unite:"mg", cible:{m:1.3,f:1.3},  grp:"vitamine",
    role:"Métabolisme des protéines. Nécessaire avec ton apport élevé.", src:"Saumon, banane, avocat"},
-  {cle:"b9",  nom:"Folate (B9)", fr:"le folate",       unite:"µg", cible:400,  grp:"vitamine",
+  {cle:"b9",  nom:"Folate (B9)", fr:"le folate",       unite:"µg", cible:{m:400,f:400},  grp:"vitamine",
    role:"Division cellulaire et réparation de l'ADN.", src:"Légumineuses, kale, avocat"},
-  {cle:"b12", nom:"Vitamin B12", fr:"la vitamine B12", unite:"µg", cible:2.4,  grp:"vitamine",
+  {cle:"b12", nom:"Vitamin B12", fr:"la vitamine B12", unite:"µg", cible:{m:2.4,f:2.4},  grp:"vitamine",
    role:"Nerfs et globules rouges. Uniquement dans les produits animaux.", src:"Sardines, saumon, bœuf"},
-  {cle:"cho", nom:"Choline",     fr:"la choline",      unite:"mg", cible:550,  grp:"vitamine",
+  {cle:"cho", nom:"Choline",     fr:"la choline",      unite:"mg", cible:{m:550,f:425},  grp:"vitamine",
    role:"Cerveau et foie. La plupart des gens en manquent — pas toi, grâce aux œufs.", src:"Œufs, saumon, bœuf"},
-  {cle:"o3",  nom:"Omega-3",     fr:"les oméga-3",     unite:"g",  cible:1.6,  grp:"macro",
+  {cle:"o3",  nom:"Omega-3",     fr:"les oméga-3",     unite:"g",  cible:{m:1.6,f:1.1},  grp:"macro",
    role:"Anti-inflammatoire. Un des liens les plus solides avec la longévité.", src:"Saumon, sardines"}
 ];
 
@@ -908,6 +925,21 @@ const NUT_GROUPES = [
   {cle:"mineral",  titre:"Minerals",              fr:"Minéraux"},
   {cle:"vitamine", titre:"Vitamins",              fr:"Vitamines"}
 ];
+
+// DRI/RDA differ by sex and the gaps are not cosmetic - iron is 8 mg for men
+// and 18 mg for menstruating women. Showing a woman male targets would render
+// her iron green at half of what she needs. Sex is collected at onboarding;
+// when it is unknown we take the higher of the two so nothing reads as "done"
+// that might not be.
+function userSex(){ const x=(S.settings&&S.settings.sex)||'na'; return (x==='male'||x==='female')?x:'na'; }
+function cibleFor(n){
+  const c=n.cible;
+  if(typeof c==='number') return c;
+  const sx=userSex();
+  if(sx==='male') return c.m;
+  if(sx==='female') return c.f;
+  return Math.max(c.m,c.f);
+}
 
 const MACRO_CIBLES = {
   weekday: {kcal:2800, p:150, g:190, l:125},
@@ -924,6 +956,54 @@ const LEXIQUE = [
   ["le jeûne","fasting"],["le métabolisme de base","basal metabolic rate"],["l'entretien","maintenance"],
   ["un surplus","a surplus"],["la tendance","the trend"]
 ];
+
+// ---------- hand portions ----------
+// The scale is what kills adherence. Hand portions cost nothing and land close
+// enough to expose a structural gap (vitamin K at 16% is not a rounding error).
+// Gram figures from Precision Nutrition's hand-size portion guide. Protein is
+// converted from their cooked figure to a raw equivalent (+30%), because meat
+// in this app is logged raw; vegetables, cooked grains/legumes and fats are
+// logged as-served and need no conversion.
+// Every portion entry is force-marked `est` - it is an approximation by
+// construction, and hand size varies. It is never presented as measured.
+const PORTIONS = {
+  palm:   {icon:'✋', label:'palm',   of:'protein',           m:145, f:110},
+  fist:   {icon:'✊', label:'fist',   of:'vegetables',        m:100, f:100},
+  cupped: {icon:'🤲', label:'cupped', of:'grains / legumes',  m:160, f:125},
+  thumb:  {icon:'👍', label:'thumb',  of:'fats, nuts, oils',  m:14,  f:14}
+};
+let portionMode = false;
+let portionSel = {palm:0, fist:0, cupped:0, thumb:0};
+
+function portionGrams(){
+  const sx = userSex();
+  return Object.keys(PORTIONS).reduce((sum,k)=>{
+    const p = PORTIONS[k];
+    // unknown sex: midpoint, so the estimate is not silently biased either way
+    const g = sx==='male' ? p.m : sx==='female' ? p.f : (p.m+p.f)/2;
+    return sum + g*portionSel[k];
+  },0);
+}
+function portionsChosen(){ return Object.values(portionSel).some(v=>v>0); }
+function resetPortions(){ portionSel = {palm:0, fist:0, cupped:0, thumb:0}; }
+function portionSummary(){
+  const parts = Object.keys(PORTIONS).filter(k=>portionSel[k]>0)
+    .map(k=>portionSel[k]+' '+PORTIONS[k].label+(portionSel[k]>1?'s':''));
+  return parts.join(' + ');
+}
+
+// The single gram figure the log uses, whichever way it was entered.
+function currentGrams(){
+  if(portionMode) return portionsChosen() ? Math.round(portionGrams()) : null;
+  const el = document.getElementById('nQty');
+  const v = el ? parseFloat(el.value) : NaN;
+  return (isFinite(v) && v>0) ? v : null;
+}
+function currentEst(){
+  if(portionMode) return true;              // a portion is an estimate, always
+  const ee = document.getElementById('nEst');
+  return ee ? ee.checked : false;
+}
 
 // ---------- nutrition maths ----------
 
@@ -970,8 +1050,8 @@ function dayNutrition(date){
 function nutritionCoverage(date){
   const {t, any} = dayNutrition(date);
   if(!any) return null;
-  const hit = NUTRIMENTS.filter(n => t[n.cle]/n.cible >= 1).length;
-  const short = NUTRIMENTS.map(n=>({n, pct:t[n.cle]/n.cible}))
+  const hit = NUTRIMENTS.filter(n => t[n.cle]/cibleFor(n) >= 1).length;
+  const short = NUTRIMENTS.map(n=>({n, pct:t[n.cle]/cibleFor(n)}))
                           .filter(x=>x.pct<0.7).sort((a,b)=>a.pct-b.pct);
   return {hit, total:NUTRIMENTS.length, short};
 }
@@ -1030,13 +1110,7 @@ async function scoreFood(name, ingredients, product){
 async function addFood(name, product, grams, est){
   // Weight comes from the shared grams field unless a caller supplies it, so
   // every route into the log - search, barcode, AI-only - carries a weight.
-  if(grams===undefined){
-    const el = document.getElementById('nQty');
-    const v = el ? parseFloat(el.value) : NaN;
-    grams = (isFinite(v) && v>0) ? v : null;
-    const ee = document.getElementById('nEst');
-    est = ee ? ee.checked : false;
-  }
+  if(grams===undefined){ grams = currentGrams(); est = currentEst(); }
   toast('Scoring "'+name+'"…');
   const res = await scoreFood(name, product?product.ingredients_text:'', product);
   const n = product&&product.nutriments||{};
@@ -1046,6 +1120,7 @@ async function addFood(name, product, grams, est){
     kcal:n['energy-kcal_100g']??null, protein:n.proteins_100g??null, sugar:n.sugars_100g??null, ts:Date.now() });
   const q = document.getElementById('nQty'); if(q) q.value='';
   const e2 = document.getElementById('nEst'); if(e2) e2.checked=false;
+  resetPortions();
   saveDay(S.date); render();
   toast('Added — '+res.score+'/100'+(grams?' · '+grams+' g':''));
 }
@@ -1057,7 +1132,10 @@ async function addFood(name, product, grams, est){
 function addWholeFood(key, grams, est){
   const a = ALIMENTS[key];
   if(!a) return;
-  if(!grams || grams<=0){ const q=document.getElementById('nQty'); if(q) q.focus(); return; }
+  if(!grams || grams<=0){
+    if(portionMode){ toast('Pick at least one hand portion'); return; }
+    const q=document.getElementById('nQty'); if(q) q.focus(); return;
+  }
   const d = ensureDay(S.date);
   d.foods.push({ name:a.en, nomFr:a.nom, key:key, grams:grams, est:!!est,
     nutrients:a, nutSrc:'table', score:null, flagged:[], details:[], summary:'',
@@ -1065,8 +1143,9 @@ function addWholeFood(key, grams, est){
     kcal:a.kcal, protein:a.p, sugar:null, ts:Date.now() });
   const q = document.getElementById('nQty'); if(q) q.value='';
   const e2 = document.getElementById('nEst'); if(e2) e2.checked=false;
+  resetPortions();
   saveDay(S.date); render();
-  toast(a.nom+' — '+grams+' g');
+  toast(a.nom+' — '+grams+' g'+(est?' (estimated)':''));
 }
 function repeatOffenders(rangeDays){
   const counts={}; const cutoff = rangeDays? Date.now()-rangeDays*864e5 : 0;
@@ -1586,10 +1665,15 @@ function renderFuel(){
   h += '<div class="grid2 fade">';
   h += '<div class="card"><h3>Log a food</h3>'
     + '<div class="sub" style="margin-top:2px">Weigh it raw. Meat and fish lose 20-25% cooking; avocado without skin or pit.</div>'
-    + '<div class="logrow mt">'
-    +   '<input type="number" id="nQty" class="qty" min="0" step="1" placeholder="grams">'
-    +   '<label class="estbox"><input type="checkbox" id="nEst"><span>estimated</span></label>'
+    + '<div class="seg mt">'
+    +   '<button class="'+(portionMode?'':'on')+'" data-pmode="g">Weigh it</button>'
+    +   '<button class="'+(portionMode?'on':'')+'" data-pmode="p">Hand portions</button>'
     + '</div>'
+    + (portionMode ? portionPickerHTML() :
+        '<div class="logrow mt">'
+      +   '<input type="number" id="nQty" class="qty" min="0" step="1" placeholder="grams">'
+      +   '<label class="estbox"><input type="checkbox" id="nEst"><span>estimated</span></label>'
+      + '</div>')
     + '<div class="logsub">Staples · full 22-nutrient data</div>'
     + '<div class="logrow">'
     +   '<select id="nPick">'+Object.entries(ALIMENTS).map(([k,a])=>'<option value="'+k+'">'+esc(a.nom)+'</option>').join('')+'</select>'
@@ -1689,7 +1773,7 @@ function renderFuel(){
   // ---- row 4: the 22 ----
   h += '<div class="card mt fade"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">'
     + '<h3>Micronutrients</h3>'
-    + (N.any?'<span class="badge gray">'+NUTRIMENTS.filter(n=>N.t[n.cle]/n.cible>=1).length+' of '+NUTRIMENTS.length+' at target</span>':'')
+    + (N.any?'<span class="badge gray">'+NUTRIMENTS.filter(n=>N.t[n.cle]/cibleFor(n)>=1).length+' of '+NUTRIMENTS.length+' at target</span>':'')
     + '</div>';
   if(!N.any){
     h += '<div class="sub" style="margin-top:8px">Weigh something and the 22 fill in. Nutrients are computed from weights only — a food logged without a weight scores for quality but cannot count toward a target.</div>';
@@ -1698,10 +1782,10 @@ function renderFuel(){
     NUT_GROUPES.forEach(grp=>{
       h += '<div class="nutgrp">'+grp.titre+' <span style="color:var(--text3)">· '+grp.fr+'</span></div>';
       NUTRIMENTS.filter(n=>n.grp===grp.cle).forEach(n=>{
-        const v=N.t[n.cle], pct=v/n.cible, unk=N.inconnu[n.cle];
+        const v=N.t[n.cle], cib=cibleFor(n), pct=v/cib, unk=N.inconnu[n.cle];
         h += '<div class="nutrow" data-nut="'+n.cle+'">'
           + '<div class="nuthead"><span class="nutname">'+n.nom+'</span>'
-          + '<span class="nutfig"><b>'+(v<10?Math.round(v*10)/10:Math.round(v))+'</b> / '+n.cible+' '+n.unite+' · '+Math.round(pct*100)+'%'
+          + '<span class="nutfig"><b>'+(v<10?Math.round(v*10)/10:Math.round(v))+'</b> / '+cib+' '+n.unite+' · '+Math.round(pct*100)+'%'
           + (unk?' <span class="unk" title="'+unk+' weighed item(s) had no data for this nutrient — counted as unknown, not zero">+'+unk+' unknown</span>':'')
           + '</span></div>'
           + '<div class="nbar"><i class="'+nutClass(pct)+'" style="width:'+Math.min(pct*100,100)+'%"></i></div>'
@@ -1722,6 +1806,30 @@ function renderFuel(){
 }
 
 function nutClass(pct){ return pct>=1 ? 'ok' : pct>=0.7 ? 'mid' : 'low'; }
+
+// No scale needed. Tap the shape of what you ate.
+function portionPickerHTML(){
+  let h = '<div class="portgrid mt">';
+  Object.entries(PORTIONS).forEach(([k,p])=>{
+    const n = portionSel[k];
+    h += '<button class="portchip'+(n?' on':'')+'" data-portion="'+k+'" title="'+p.of+'">'
+      +   '<span class="pico">'+p.icon+'</span>'
+      +   '<span class="plab">'+p.label+'</span>'
+      +   '<span class="pof">'+p.of+'</span>'
+      +   (n?'<span class="pcount">'+n+'</span>':'')
+      + '</button>';
+  });
+  h += '</div>';
+  if(portionsChosen()){
+    h += '<div class="portsum">'+portionSummary()
+      +  ' <b>≈ '+Math.round(portionGrams())+' g</b>'
+      +  ' of this food <span class="esttag">estimé</span>'
+      +  ' <button class="lnk pclear" id="pClear">clear</button></div>';
+  } else {
+    h += '<div class="sub portsum">How much of <b>this</b> food? Tap again for a second helping. Log the rest of the plate separately.</div>';
+  }
+  return h;
+}
 
 function fuelCharts(){
   if(typeof Chart==='undefined') return;
@@ -1976,6 +2084,14 @@ document.addEventListener('click', e=>{
   if(del){ const d=ensureDay(S.date); d.foods.splice(+del.dataset.delfood,1); saveDay(S.date); render(); return; }
   const nh = e.target.closest('.nuthead');
   if(nh){ nh.parentElement.classList.toggle('open'); return; }
+  const pm = e.target.closest('[data-pmode]');
+  if(pm){ portionMode = pm.dataset.pmode==='p'; resetPortions(); render(); return; }
+  const pc = e.target.closest('[data-portion]');
+  if(pc){ const k=pc.dataset.portion;
+    // A portion sizes the food about to be added, not the whole meal - so the
+    // shapes are exclusive. Two palms of salmon is one entry; the rice beside
+    // it is a separate cupped-hand entry.
+    const n = portionSel[k]||0; resetPortions(); portionSel[k]=n+1; render(); return; }
   if(e.target.id==='modalBg' && !onboardingOpen) hideModal();
   const t = e.target.closest('button, label'); if(!t) return;
   switch(t.id){
@@ -1995,8 +2111,8 @@ document.addEventListener('click', e=>{
     case 'coachAiBtn': t.disabled=true; t.textContent='Thinking…'; coachAI().catch(err=>{toast('Coach failed: '+err.message); render();}); break;
     case 'foodGo': doFoodSearch(); break;
     case 'nAdd': { const k=(document.getElementById('nPick')||{}).value;
-      const v=parseFloat((document.getElementById('nQty')||{}).value);
-      addWholeFood(k, (isFinite(v)&&v>0)?v:null, (document.getElementById('nEst')||{}).checked); break; }
+      addWholeFood(k, currentGrams(), currentEst()); break; }
+    case 'pClear': resetPortions(); render(); break;
     case 'saveHeart': { const d=ensureDay(S.date);
       const r=+document.getElementById('rhrIn').value||null, hv=+document.getElementById('hrvIn').value||null;
       d.heart.rhr=r; d.wearable.hrv=hv; if(r) d.wearable.restingHR=r;
@@ -2113,6 +2229,7 @@ function completeOnboarding(){
     sit:+document.getElementById('obSit').value||8,
     protein:+document.getElementById('obProt').value||90 };
   S.settings.name=p.name; S.settings.dob=p.dob; S.settings.proteinTarget=p.protein;
+  S.settings.sex=p.sex;   // drives the nutrient targets - male and female DRIs differ
   S.settings.coachBio=guestCoachBio(p);
   S.templates=buildGuestTemplates(p);
   S.protocols=[]; S.onboarded=true;
