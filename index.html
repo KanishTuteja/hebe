@@ -1224,16 +1224,144 @@ async function offBarcode(code){
   const j = await r.json();
   return j.status===1 ? j.product : null;
 }
-function heuristicScore(name, ingredients, product){
-  const flagged=[]; const text=(ingredients||'')+' '+(name||'');
-  JUNK.forEach(j=>{ if(j.rx.test(text)&&!flagged.some(f=>f.ingredient===j.name)) flagged.push({ingredient:j.name,reason:j.why}); });
-  let score; const g = product&&product.nutriscore_grade;
-  if(g) score = ({a:90,b:75,c:60,d:42,e:25})[g]||55; else score = ingredients?70:55;
-  score -= flagged.length*6;
-  if(product&&Number(product.nova_group)===4) score -= 10;
-  const novaG = product&&Number(product.nova_group)||null;
-  return { score:clamp(Math.round(score),5,98), flagged, summary: flagged.length? flagged.length+' flagged ingredient(s).':'No red flags found.', nova:novaG, confidence: g?'med':'low', basis: g?('Nutri-Score '+g.toUpperCase()+(novaG?' · NOVA'+novaG:'')):'name-based estimate', src:'built-in' };
+// ============================================================================
+//  LOCAL INTELLIGENCE  —  full scoring with no API key
+//
+//  The no-key path is not a degraded fallback. Food quality does not need a
+//  language model: NOVA is a classification with published criteria, and
+//  Nutri-Score is arithmetic (FSA-NPS, 2023 revision). Both are reproducible,
+//  auditable and run offline - which for a health number is BETTER than an
+//  LLM, because the same food always returns the same score and the reasoning
+//  can be shown rather than trusted.
+//
+//  An API key upgrades the wording and handles genuinely ambiguous cases
+//  (mixed dishes, unlisted ingredients). It is an option, never a requirement.
+//
+//  Honest limit: every input here must be real. A missing nutrient returns
+//  null and lowers the stated confidence - it is never defaulted to zero,
+//  because a zero is a claim.
+// ============================================================================
+
+// FSA-NPS 2023, general foods.
+function stepPts(v, step, max){ if(v==null) return null; let p=0; while(p<max && v > step*(p+1)) p++; return p; }
+function tablePts(v, arr){ if(v==null) return null; let p=0; arr.forEach(th=>{ if(v>th) p++; }); return p; }
+
+const NPS_FIBRE   = [3.0,4.1,5.2,6.3,7.4];
+const NPS_PROTEIN = [2.4,4.8,7.2,9.6,12,14,17];
+
+function fsaNps(n){
+  if(!n) return null;
+  const kj = n.kj!=null ? n.kj : (n.kcal!=null ? n.kcal*4.184 : null);
+  const parts = { energy:stepPts(kj,335,10), sugars:stepPts(n.sugars,3.4,15),
+                  satfat:stepPts(n.satfat,1,10), salt:stepPts(n.salt,0.2,20) };
+  // Never guess a missing negative input - without it there is no score.
+  if(Object.values(parts).some(x=>x==null)) return null;
+  const N = parts.energy+parts.sugars+parts.satfat+parts.salt;
+  const fib = tablePts(n.fibre, NPS_FIBRE) ?? 0;
+  const pro = tablePts(n.protein, NPS_PROTEIN) ?? 0;
+  // Fruit/veg/legume share is rarely published. Absent, it counts 0, which is
+  // the conservative direction: a produce-heavy product scores no better than
+  // its nutrients justify, rather than better than the evidence supports.
+  const fvl = n.fvl!=null ? (n.fvl>80?5:n.fvl>60?2:n.fvl>40?1:0) : 0;
+  const P = fvl + fib + (N < 11 ? pro : 0);
+  const sc = N - P;
+  return { score:sc, grade: sc<1?'a':sc<3?'b':sc<11?'c':sc<19?'d':'e',
+           N, P, fvlKnown:n.fvl!=null, proteinCounted: N<11 };
 }
+
+// Markers of industrial formulation - the substances that only appear in a
+// factory. Their presence is what separates NOVA 4 from NOVA 3.
+const UPF_MARKERS = [
+  /high[- ]fructose|glucose[- ]fructose|invert sugar|corn syrup|dextrose|maltodextrin/i,
+  /hydrogenated|interesterified/i,
+  /protein (isolate|concentrate)|hydroly[sz]ed/i,
+  /modified (corn |potato |tapioca )?starch/i,
+  /flavou?r(ing)?\b/i,
+  /colou?r(ing)?\b|caramel colou?r|titanium dioxide|tartrazine|allura/i,
+  /emulsifier|stabili[sz]er|thickener|anti[- ]caking|humectant|firming agent/i,
+  /carrageenan|xanthan|guar gum|polysorbate|mono-? and diglycerides|lecithin/i,
+  /aspartame|sucralose|acesulfame|saccharin|sweetener/i,
+  /sodium nitrite|sodium nitrate|benzoate|sorbate|\bbha\b|\bbht\b|tbhq/i,
+  /\bE\d{3}\b/
+];
+// Culinary ingredients - NOVA 2 alone, NOVA 3 when added to a whole food.
+const CULINARY = /\b(sugar|salt|oil|butter|honey|syrup|vinegar|starch|lard|tallow|ghee)\b/i;
+
+// NOVA from the ingredient list, following the published criteria: count the
+// ingredients, then look for what only industry adds.
+function novaFromIngredients(txt){
+  if(!txt || !txt.trim()) return null;
+  const clean = txt.replace(/\([^)]*\)/g,' ');
+  const items = clean.split(/[,;]+/).map(x=>x.trim()).filter(x=>x.length>1);
+  const hits = UPF_MARKERS.filter(rx=>rx.test(txt)).length;
+  if(hits >= 2) return {nova:4, why:'multiple industrial formulation markers'};
+  if(hits === 1) return {nova:4, why:'an industrial formulation marker'};
+  if(items.length === 1) return {nova:1, why:'a single whole ingredient'};
+  if(items.length <= 3 && CULINARY.test(txt)) return {nova:3, why:'a whole food with added salt, sugar or oil'};
+  if(items.length <= 2) return {nova:1, why:'one or two whole ingredients'};
+  return {nova:3, why:'several ingredients, none of them industrial markers'};
+}
+
+// Pull the FSA-NPS inputs out of an Open Food Facts product, in its units.
+function nutrForNps(product){
+  const n = product && product.nutriments; if(!n) return null;
+  const num = v => (typeof v==='number' && isFinite(v)) ? v : null;
+  let salt = num(n.salt_100g);
+  if(salt==null && num(n.sodium_100g)!=null) salt = n.sodium_100g*2.5;
+  return { kj:num(n['energy-kj_100g']), kcal:num(n['energy-kcal_100g']),
+           sugars:num(n.sugars_100g), satfat:num(n['saturated-fat_100g']),
+           salt:salt, fibre:num(n.fiber_100g), protein:num(n.proteins_100g),
+           fvl:num(n['fruits-vegetables-legumes-estimate-from-ingredients_100g'])
+               ?? num(n['fruits-vegetables-nuts-estimate-from-ingredients_100g']) };
+}
+
+// The 0-100 longevity score. NOVA sets the band, Nutri-Score moves within it,
+// flagged ingredients subtract. Same anchoring the AI prompt uses, so a user
+// with a key and one without are reading the same scale.
+const NOVA_BAND = {1:[85,98], 2:[70,84], 3:[50,69], 4:[15,49]};
+
+function localScore(name, ingredients, product){
+  const flagged = [];
+  const text = (ingredients||'') + ' ' + (name||'');
+  JUNK.forEach(j=>{ if(j.rx.test(text) && !flagged.some(f=>f.ingredient===j.name))
+    flagged.push({ingredient:j.name, reason:j.why}); });
+
+  const nps = fsaNps(nutrForNps(product));
+  const offGrade = product && product.nutriscore_grade;
+  const grade = offGrade || (nps ? nps.grade : null);
+
+  const offNova = product && Number(product.nova_group);
+  const derived = novaFromIngredients(ingredients);
+  const nova = (offNova>=1 && offNova<=4) ? offNova : (derived ? derived.nova : null);
+
+  const band = NOVA_BAND[nova] || [45,75];
+  let score = (band[0]+band[1])/2;
+  if(grade) score += ({a:6,b:3,c:0,d:-4,e:-8})[grade] || 0;
+  score -= Math.min(12, flagged.length*3);
+  score = clamp(Math.round(score), band[0]-6, band[1]);
+
+  // Confidence follows the evidence actually used, nothing more.
+  let confidence = 'low';
+  if((offGrade || nps) && (offNova || derived)) confidence = 'high';
+  else if(offGrade || nps || offNova || derived) confidence = 'med';
+
+  const bits = [];
+  if(nova) bits.push('NOVA'+nova + (offNova ? '' : derived ? ' ('+derived.why+')' : ''));
+  if(offGrade) bits.push('Nutri-Score '+offGrade.toUpperCase());
+  else if(nps) bits.push('Nutri-Score '+nps.grade.toUpperCase()+' computed here ('+nps.N+' minus '+nps.P+')');
+  if(!bits.length) bits.push('name only — no ingredients or nutrition found');
+
+  const summary = flagged.length
+    ? flagged.length+' flagged ingredient'+(flagged.length>1?'s':'')+'.'
+    : (nova===1||nova===2) ? 'Whole or minimally processed.' : 'No flagged ingredients found.';
+
+  return { score, flagged, summary, nova: nova||null, confidence,
+           basis: bits.join(' · '), src:'local' };
+}
+
+// Kept as the old name so every existing call site keeps working.
+function heuristicScore(name, ingredients, product){ return localScore(name, ingredients, product); }
+
 async function scoreFood(name, ingredients, product){
   if(!S.settings.apiKey) return heuristicScore(name, ingredients, product);
   try{
