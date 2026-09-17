@@ -1,0 +1,10 @@
+# Private working docs and tooling — never publish (repo is public)
+CLAUDE.md
+HEBE_*.md
+VITALS_PROJECT.md
+EXPORT_PROMPT.md
+graphify-out/
+graphify_src/
+.claude/
+data/
+Claude outputs/
