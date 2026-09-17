@@ -96,6 +96,21 @@ label.f{font-size:11.5px;color:var(--text2);display:block;margin-bottom:3px}
 .insight{background:var(--purple-bg);border-radius:var(--r);padding:12px 15px;display:flex;gap:10px;align-items:flex-start}
 .insight .t{font-size:11.5px;color:var(--purple);font-weight:600}
 .insight .b{font-size:13px;color:var(--purple-dk);line-height:1.45;margin-top:1px}
+/* --- UX refinement: read line, slim check-in bar, expand-on-tap reveals --- */
+.readline{font-size:14.5px;line-height:1.45;font-weight:650;margin-top:10px;padding-left:10px;border-left:3px solid var(--teal)}
+.readline.up{border-left-color:var(--coral)}
+.readline.flat{border-left-color:var(--line2);font-weight:600;color:var(--text2)}
+.checkbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--card);border:1px solid var(--line2);border-radius:12px;padding:10px 15px;margin-top:14px}
+.checkbar.done{background:var(--teal-bg)}
+.checkbar .q{font-size:13.5px;font-weight:600}
+.checkbar .sub2{font-weight:400;color:var(--text2);font-size:12px}
+.reveal{margin-top:10px}
+.reveal>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:11px;letter-spacing:.05em;text-transform:uppercase;font-weight:700;color:var(--text2);padding:9px 0;border-top:1px solid var(--line)}
+.reveal>summary::-webkit-details-marker{display:none}
+.reveal>summary::after{content:'\25B8';margin-left:auto;color:var(--text3);transition:transform .2s}
+.reveal[open]>summary::after{transform:rotate(90deg)}
+.reveal>summary .sub2{font-weight:500;text-transform:none;letter-spacing:0;color:var(--text3)}
+.reveal .fork{border-top:none;margin-top:2px;padding-top:0}
 .foodrow{padding:11px 13px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px}
 .flag{display:inline-block;font-size:11px;background:var(--coral-bg);color:var(--coral-dk);border-radius:99px;padding:2px 9px;margin:2px 3px 0 0}
 .scorepill{font-weight:700;font-size:13.5px;border-radius:99px;padding:3px 11px}
@@ -1692,6 +1707,45 @@ function oneMoveHTML(){
     + '<div class="worth"><span class="n">'+lev.gain.toFixed(1)+'</span><span class="u">yrs on the table</span></div>'
     + '</div>';
 }
+// One-line "today's read" for the hero — composed ONLY from existing engine
+// outputs (debriefVerdict + dayLedger). No new math, no new claim.
+function todaysRead(date){
+  const d = S.days[date];
+  if(!(d && d.confirmed) && date===todayStr()) return { text:"Today's picture will sharpen after your check-in.", dir:0 };
+  const v = debriefVerdict(date), led = dayLedger(date);
+  if(!v) return { text:'', dir:0 };
+  const up = led.helped[0], down = led.hurt[0];
+  const lead = v.dir<0 ? 'Trending younger.' : v.dir>0 ? 'Running a little older.' : 'Holding your line.';
+  const tail = up ? ' '+up.name+' is doing most of the work.'
+             : down ? ' '+down.name+' is the main drag.'
+             : ' Steady is a win.';
+  return { text: lead+tail, dir: v.dir };
+}
+// Slim check-in bar — same logic + same element ids as the old card, restyled to
+// sit directly under the hero without replacing the opening experience.
+function checkbarHTML(d, isPast, seg){
+  if(d.confirmed){
+    const desc = 'Logged'+(d.deviations.length? ' · '+d.deviations.length+' deviation'+(d.deviations.length>1?'s':''):'')+' · '+d.template+(d.workoutType?' · '+d.workoutType+' day':'')+(d.backfilled?' · backfilled':'');
+    return '<div class="checkbar done"><span class="q">✓ <b>'+(isPast?shortDate(S.date)+' logged':'Today logged')+'</b> <span class="sub2">'+desc+'</span></span>'
+      + '<button class="btn" id="reopenCheckin" style="font-size:12px;padding:6px 12px;margin-left:auto">Edit</button></div>';
+  }
+  let h = '<div class="checkbar">'
+    + '<span class="q">'+(isPast?'How did '+shortDate(S.date)+' go? Usual '+d.template+'?':'Usual '+d.template+'?')+(d.protocolId?' <span class="sub2">(fast day)</span>':'')+'</span>';
+  if(d.template==='weekday') h += '<span style="display:flex;gap:7px">'
+    + '<span class="chip wt-chip '+(d.workoutType==='core'?'on':'')+'" data-wt="core">Core</span>'
+    + '<span class="chip wt-chip '+(d.workoutType==='arms'?'on':'')+'" data-wt="arms">Arms</span></span>';
+  h += '<span style="display:flex;gap:8px;margin-left:auto">'
+    + '<button class="btn primary" id="ciYes" style="font-size:12.5px;padding:7px 14px">Yes, as planned</button>'
+    + '<button class="btn" id="ciNo" style="font-size:12.5px;padding:7px 14px">Something changed</button></span>'
+    + '</div>';
+  if(checkinOpen){
+    h += '<div class="card fade" style="margin-top:8px"><div style="display:flex;flex-wrap:wrap;gap:6px">'
+      + CHIPS.map(c=>'<span class="chip dev-chip '+(activeChips.has(c.id)?'on':'')+'" data-chip="'+c.id+'">'+c.label+'</span>').join('')
+      + '</div><div style="margin-top:9px"><input type="text" id="checkinText" placeholder=\'or just tell me: "rained, took the bus, ate lunch out"\'></div>'
+      + '<button class="btn primary" id="ciApply" style="margin-top:9px;width:100%">Log the day</button></div>';
+  }
+  return h;
+}
 function renderHome(){
   const d = ensureDay(S.date);
   const age = d.hebeAge!=null? d.hebeAge : computeHebeAge(S.date);
@@ -1744,19 +1798,27 @@ function renderHome(){
     + ageBadge
     + '</div>'
     + '<div class="sub" style="margin-top:4px">chronological '+chrono.toFixed(2)+' · '+(age<=chrono? 'living '+(chrono-age).toFixed(2)+' yrs younger':'running '+(age-chrono).toFixed(2)+' yrs older')+'</div>'
+    + (function(){var r=todaysRead(S.date); return r.text? '<div class="readline '+(r.dir>0?'up':r.dir<0?'':'flat')+'">'+esc(r.text)+'</div>':'';})()
     + (ageNote ? '<div class="sub" style="margin-top:8px;font-size:11.5px;line-height:1.5;background:var(--amber-bg);border:1px solid var(--line2);padding:8px 10px;border-radius:9px">'+ageNote+'</div>' : '')
-    + forkHTML(nConf, MATURE_DAYS)
     + '<div class="chartbox" style="height:120px;margin-top:12px"><canvas id="chAgeSpark"></canvas></div>'
-    + '<div class="sub" style="font-size:11px;margin-top:2px">hover to scrub · click a day for its story</div></div>';
+    + '<div class="sub" style="font-size:11px;margin-top:2px">hover to scrub · click a day for its story</div>'
+    + (function(){var f=forkHTML(nConf, MATURE_DAYS); return f? '<details class="reveal"><summary>Your trajectory<span class="sub2"> · 30-day trend · 10-year outlook</span></summary>'+f+'</details>':'';})()
+    + '</div>';
   h += '<div class="card" style="display:flex;flex-direction:column"><div class="coach-tag">'+ICONS.chat+' '+segLbl+(coach.ai?' · AI':'')+'</div>'
     + '<div style="font-size:13.5px;line-height:1.55;margin-top:7px">'+esc(coach.text)+'</div>'
-    + debriefHTML(S.date)
+    + (function(){var fr=debriefHTML(S.date); return fr? '<details class="reveal" '+(coach.seg==='evening'?'open':'')+'><summary>Your full read<span class="sub2"> · band, domains, what moved today</span></summary>'+fr+'</details>':'';})()
     + '<div style="margin-top:auto;padding-top:10px">'+(S.settings.apiKey?'<button class="btn" id="coachAiBtn" style="font-size:12px;padding:6px 12px">'+(coach.ai?'Regenerate':'Ask the coach (AI)')+'</button>':'<span class="sub">Add an API key in Setup for the live coach</span>')+'</div></div>';
   h += '</div>';
 
-  // The one thing that matters today — the whole point, above the tiles.
+  // Check-in state — right after the read; the only mandatory interaction.
+  const isPast = S.date < todayStr();
+  h += checkbarHTML(d, isPast, coach.seg);
+
+  // ONE MOVE — the single dominant action for the day.
   h += oneMoveHTML();
 
+  // Supporting context, quieter. (Exploration — trajectory + full read — lives
+  // collapsed inside the hero cards above.)
   h += '<div class="grid4 mt fade">';
   const sleepOff = Math.abs(m.sleepH-7);
   h += '<div class="tile"><div class="k">Sleep</div><div class="v">'+m.sleepH+' h</div><div class="s" style="color:'+(sleepOff<=0.5?'var(--teal)':'var(--amber)')+'">'+(sleepOff<=0.5?'optimal (~7h)':(m.sleepH<7?(7-m.sleepH).toFixed(1)+'h under 7h':(m.sleepH-7).toFixed(1)+'h over 7h'))+'</div></div>';
@@ -1766,30 +1828,13 @@ function renderHome(){
   h += '</div>';
 
   h += '<div class="grid2 mt fade">';
-  const isPast = S.date < todayStr();
-  h += '<div class="card" style="border-color:'+(isPast&&!d.confirmed?'var(--amber)':'var(--line2)')+'"><div style="display:flex;justify-content:space-between;align-items:center"><h3>'+(isPast?'Catch-up log':(coach.seg==='evening'?'Evening':'Daily')+' check-in')+'</h3><span class="sub">'+(d.confirmed?'logged ✓':'10 sec')+'</span></div>';
-  if(d.confirmed){
-    h += '<div class="sub" style="margin-top:8px">Logged as '+(d.deviations.length? d.deviations.length+' deviation(s) from':'')+' your '+d.template+' template'+(d.workoutType?' · '+d.workoutType+' day':'')+(d.backfilled?' · backfilled':'')+'.</div>'
-      + '<button class="btn" id="reopenCheckin" style="margin-top:10px;font-size:12px;padding:6px 12px">Edit '+(isPast?'this day':'today')+'</button>';
-  } else {
-    h += '<div class="sub" style="margin-top:5px">'+(isPast?'How did '+shortDate(S.date)+' actually go? Usual '+d.template+'?':'Usual '+d.template+'?')+(d.protocolId?' (fast day per protocol)':'')+'</div>';
-    if(d.template==='weekday') h += '<div style="margin-top:9px;display:flex;gap:7px"><span class="chip wt-chip '+(d.workoutType==='core'?'on':'')+'" data-wt="core">Core day</span><span class="chip wt-chip '+(d.workoutType==='arms'?'on':'')+'" data-wt="arms">Arms day</span></div>';
-    h += '<div style="display:flex;gap:9px;margin-top:11px"><button class="btn primary" id="ciYes" style="flex:1">Yes, as planned</button><button class="btn" id="ciNo" style="flex:1">Something changed</button></div>';
-    if(checkinOpen){
-      h += '<div style="margin-top:12px" class="fade"><div style="display:flex;flex-wrap:wrap;gap:6px">'
-        + CHIPS.map(c=>'<span class="chip dev-chip '+(activeChips.has(c.id)?'on':'')+'" data-chip="'+c.id+'">'+c.label+'</span>').join('')
-        + '</div><div style="margin-top:9px"><input type="text" id="checkinText" placeholder=\'or just tell me: "rained, took the bus, ate lunch out"\'></div>'
-        + '<button class="btn primary" id="ciApply" style="margin-top:9px;width:100%">Log the day</button></div>';
-    }
-  }
-  h += '</div>';
-  h += '<div style="display:flex;flex-direction:column;gap:12px"><div class="insight">'+'<span style="color:var(--purple);flex-shrink:0;width:17px;margin-top:2px">'+ICONS.bulb+'</span><div><div class="t">'+(nConf>=7?'Pattern found':'Getting to know you')+'</div><div class="b">'+esc(insPick)+'</div></div></div>';
   if(st) h += '<div class="card"><h3>14-day pulse</h3><div class="sub" style="margin-top:6px;line-height:1.8">sleep '+st.sleepH.toFixed(1)+'h · train '+st.trainH.toFixed(1)+'h/day · lifts '+st.liftPerWk.toFixed(1)+'/wk · stress '+st.stress.toFixed(1)+'/10'+(st.foodAvg?' · food '+Math.round(st.foodAvg)+'/100':'')+'</div></div>';
-  h += '</div></div>';
+  else h += '<div></div>';
+  h += '<div class="insight"><span style="color:var(--purple);flex-shrink:0;width:17px;margin-top:2px">'+ICONS.bulb+'</span><div style="flex:1"><div class="t">'+(nConf>=7?'Pattern found':'Getting to know you')+'</div><div class="b">'+esc(insPick)+'</div>'+(nConf>=7?'<span class="chip" data-page="reports" style="margin-top:8px;display:inline-block;cursor:pointer">see all patterns →</span>':'')+'</div></div>';
+  h += '</div>';
 
-  // Nutrition, shown beside the age and deliberately not inside it. Biomarkers
-  // compute the HEBE age; diet is tracked against it so a correlation can be
-  // read later. Feeding diet into the age would make the number circular.
+  // Nutrition — one line here; the full view lives in Fuel. Deliberately NOT fed
+  // into the HEBE age (that would make the number circular); tracked beside it.
   const cov = nutritionCoverage(S.date);
   h += '<div class="card mt fade covar"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">'
     + '<h3>'+t('nutToday')+'</h3><span class="badge gray">'+t('notInAge')+'</span></div>';
@@ -1815,7 +1860,7 @@ function debriefHTML(date){
   if(!perf) return '';
   const yrs = v => (Math.abs(v)<0.05?'<0.1':Math.abs(v).toFixed(1))+'y';
   const dayLbl = (date===todayStr()) ? "Today's factors" : fmtDate(date)+' factors';
-  let h = '<div class="fade" style="margin-top:14px;border-top:1px solid var(--line);padding-top:13px">';
+  let h = '<div class="fade" style="padding-top:4px">';
   h += '<div style="font-weight:700;font-size:13px;margin-bottom:9px">'+dayLbl+'</div>';
 
   // Performance level headline (age-referenced, named band)
@@ -1851,7 +1896,7 @@ function debriefHTML(date){
   const topFix = led.hurt[0];
   const fixText = topFix ? topFix.fix : 'Nothing dragged today — protect your sleep and repeat it.';
   h += '<div class="insight" style="margin-top:12px"><span style="color:var(--purple);flex-shrink:0;width:17px;margin-top:2px">'+ICONS.bulb+'</span>'
-     + '<div><div class="t">#1 fix for tomorrow</div><div class="b">'+esc(fixText)+'</div></div></div>';
+     + '<div><div class="t">Tomorrow\'s one move</div><div class="b">'+esc(fixText)+'</div></div></div>';
 
   h += '<div class="sub" style="font-size:10.5px;margin-top:9px;line-height:1.4">Estimate from your logged day, not a diagnosis. Years shown are age-equivalent effects of sustaining today’s pattern.</div>';
   h += '</div>';
