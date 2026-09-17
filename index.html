@@ -78,6 +78,11 @@ h3{font-size:13.5px;font-weight:600;margin:0}
 .badge.teal{background:var(--teal-bg);color:var(--teal-dk)}
 .badge.coral{background:var(--coral-bg);color:var(--coral-dk)}
 .badge.gray{background:var(--card2);color:var(--text2)}
+.badge.purple{background:var(--purple-bg);color:var(--purple-dk)}
+.badge.tierb{font-size:11px;padding:2px 9px;font-weight:600;letter-spacing:.02em;white-space:nowrap}
+.est-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px}
+.est-head h3{margin:0}
+.zone-row .zone-range{font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}
 .coach-tag{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--purple);font-weight:600}
 .coach-tag svg{width:16px;height:16px;flex-shrink:0}
 .insight svg{width:17px;height:17px;flex-shrink:0}
@@ -1016,7 +1021,7 @@ en:{
  kg:"kg", heightCm:"height cm",
  missing:"Missing {0}. No burn figure is calculable without them, and an invented one would corrupt the correlations later — the same rule as <b>estimated</b>.",
  mTodayWeight:"today’s weight", mHeight:"your height", mDob:"your date of birth (Setup)",
- bmr:"Basal metabolic rate", loggedIntake:"Logged intake", intakeMinus:"Intake minus BMR",
+ bmr:"Basal metabolic rate", tierE:"Estimated", loggedIntake:"Logged intake", intakeMinus:"Intake minus BMR",
  proteinPerKg:"Protein per kg", weightTrend:"Weight trend · {0} weigh-ins over {1} days",
  bmrNote:"<b>BMR is not your total burn.</b> Real expenditure depends on training and everything else — not honestly calculable without a device. The method that works: weigh every morning for three weeks, then read the trend against average intake. That is measured, not estimated.",
  micronutrients:"Micronutrients", atTarget:"{0} of {1} at target",
@@ -1059,7 +1064,7 @@ fr:{
  kg:"kg", heightCm:"taille cm",
  missing:"Il manque {0}. Aucun chiffre de dépense n’est calculable sans ça, et une valeur inventée corromprait les corrélations plus tard — la même règle que <b>estimé</b>.",
  mTodayWeight:"le poids du jour", mHeight:"la taille", mDob:"la date de naissance (Réglages)",
- bmr:"Métabolisme de base", loggedIntake:"Apport enregistré", intakeMinus:"Apport moins métabolisme de base",
+ bmr:"Métabolisme de base", tierE:"Estimé", loggedIntake:"Apport enregistré", intakeMinus:"Apport moins métabolisme de base",
  proteinPerKg:"Protéines par kg", weightTrend:"Tendance du poids · {0} pesées sur {1} jours",
  bmrNote:"<b>Le métabolisme de base n’est pas la dépense totale.</b> La dépense réelle dépend de l’entraînement et du reste — impossible à calculer honnêtement sans appareil. La bonne méthode : se peser chaque matin pendant trois semaines, puis lire la tendance face à l’apport moyen. C’est mesuré, pas estimé.",
  micronutrients:"Micronutriments", atTarget:"{0} sur {1} à l’objectif",
@@ -1213,7 +1218,10 @@ function bmrFor(date){
   const d = S.days[date]; if(!d || !d.weightKg) return null;
   const h = S.settings.heightCm, a = chronoAge(date);
   if(!h || !a) return null;
-  return 10*d.weightKg + 6.25*h - 5*a + 5;
+  // Mifflin–St Jeor: +5 for male, −161 for female. "Prefer not to say" takes the
+  // lower value — under-estimating burn is the protective direction for intake.
+  const sexTerm = userSex()==='male' ? 5 : -161;
+  return 10*d.weightKg + 6.25*h - 5*a + sexTerm;
 }
 
 // Weight trend across every day actually weighed.
@@ -1224,6 +1232,240 @@ function weightTrend(){
   return {n:pts.length,
           delta: Math.round((S.days[b].weightKg - S.days[a].weightKg)*10)/10,
           days: Math.round((new Date(b+'T12:00:00')-new Date(a+'T12:00:00'))/864e5)};
+}
+
+// ---------- estimation layer ----------
+// Published equations, personalised by the one cheap input a user can supply
+// (resting HR), and honestly tiered. Nothing here feeds computeHebeAge.
+//   E — Estimated: population equation only (widest range)
+//   C — Calibrated: corrected by the user's own logged easy sessions
+//   M — Measured:  a field test or a real supplied value
+const TIER_LABEL = { E:'Estimated', C:'Calibrated', M:'Measured' };
+function tierBadge(tier, text){
+  const cls = tier==='M' ? 'purple' : tier==='C' ? 'teal' : 'gray';
+  return '<span class="badge '+cls+' tierb">'+tier+(text?' · '+text:' · '+TIER_LABEL[tier])+'</span>';
+}
+// Tanaka, Monahan & Seals 2001: HRmax = 208 − 0.7·age, SD 7–11 bpm (healthy,
+// non-medicated, non-smoking adults). Never displayed alone — input to zones only.
+function hrMaxTanaka(date){
+  const a = chronoAge(date||todayStr());
+  return a>0 ? { bpm: 208 - 0.7*a, sd: 10, measured:false } : null;
+}
+function anchors(){ return (S.settings && S.settings.anchors) || {}; }
+// Resting HR readings: every day with heart.rhr or wearable.restingHR inside the
+// window, confirmed or not. Stored individually on the day; mean + spread used.
+function rhrReadings(before, span){
+  const end = before||todayStr(), lim = span||28, out = [];
+  const endMs = new Date(end+'T12:00:00').getTime();
+  Object.keys(S.days).sort().forEach(k=>{
+    if(k>end) return;
+    const d = S.days[k]; const r = (d.heart&&d.heart.rhr) || (d.wearable&&d.wearable.restingHR);
+    if(!(r>0)) return;
+    if((endMs - new Date(k+'T12:00:00').getTime())/864e5 <= lim) out.push({date:k, bpm:r});
+  });
+  return out;
+}
+function rhrStats(before, span){
+  const rs = rhrReadings(before, span), n = rs.length;
+  if(!n) return { n:0, mean:null, sd:null, min:null, max:null, readings:rs };
+  const mean = rs.reduce((a,r)=>a+r.bpm,0)/n;
+  const sd = n>1 ? Math.sqrt(rs.reduce((a,r)=>a+(r.bpm-mean)*(r.bpm-mean),0)/(n-1)) : null;
+  return { n, mean, sd, min:Math.min.apply(null,rs.map(r=>r.bpm)), max:Math.max.apply(null,rs.map(r=>r.bpm)), readings:rs };
+}
+// ACSM intensity classification — Garber et al. 2011 (ACSM position stand,
+// Med Sci Sports Exerc 43:1334–59), Table 5, as % of heart-rate reserve.
+// ACSM does not number these bands, so neither does HEBE.
+const ACSM_BANDS = [
+  { key:'vlight', name:'Very light',   lo:0.00, hi:0.30, rpe:'RPE below 9', talk:'barely an effort' },
+  { key:'light',  name:'Light',        lo:0.30, hi:0.40, rpe:'RPE 9–11',    talk:'easy — full conversation' },
+  { key:'mod',    name:'Moderate',     lo:0.40, hi:0.60, rpe:'RPE 12–13',   talk:'can talk in sentences' },
+  { key:'vig',    name:'Vigorous',     lo:0.60, hi:0.90, rpe:'RPE 14–17',   talk:'a few words at a time' },
+  { key:'max',    name:'Near-maximal', lo:0.90, hi:1.00, rpe:'RPE 18+',     talk:'no talking' }
+];
+const ZONE_CALIB_K = 3;    // calibration weight n/(n+3); band shrink 3/(3+n)
+const ZONE_ERR_FLOOR = 4;  // bpm — the band never claims tighter than this
+// Calibration observations: easy sessions (talk-test "could chat") with a logged
+// average HR. Only easy sessions calibrate — it is the one effort descriptor
+// people report reliably. Harder sessions are stored but not used.
+function calibObs(before){
+  const end = before||todayStr(), out = [];
+  Object.keys(S.days).sort().forEach(k=>{
+    if(k>end) return; const h = S.days[k].heart;
+    if(h && h.sessHR>0 && h.sessRPE==='easy') out.push({date:k, bpm:h.sessHR});
+  });
+  return out;
+}
+// Karvonen: target = HRrest + %HRR × (HRmax − HRrest). Error per band edge is
+// propagated from the HRmax SD (scaled by the edge's %HRR) plus the resting-HR
+// standard error, then shrunk by calibration, never below ZONE_ERR_FLOOR.
+function zonesFor(date){
+  date = date||todayStr();
+  const rs = rhrStats(date, 28), an = anchors();
+  const hm = (an.hrmax && an.hrmax.bpm>0) ? { bpm:+an.hrmax.bpm, sd:3, measured:true, date:an.hrmax.date, method:an.hrmax.method } : hrMaxTanaka(date);
+  if(!hm) return { ok:false, reason:'nodob', rhr:rs };
+  if(!rs.n) return { ok:false, reason:'norhr', rhr:rs };
+  const sdR = rs.n>=3 ? Math.max(2, (rs.sd||2)/Math.sqrt(rs.n)) : 5;   // <3 readings: widened
+  const obs = calibObs(date), n = obs.length;
+  const hrr = hm.bpm - rs.mean;
+  let offset = 0;
+  if(n){ const mid = rs.mean + hrr*0.50; offset = obs.reduce((a,o)=>a+(o.bpm-mid),0)/n * n/(n+ZONE_CALIB_K); }
+  const tier = hm.measured ? 'M' : (n>=3 ? 'C' : 'E');
+  const shrink = hm.measured ? 1 : ZONE_CALIB_K/(ZONE_CALIB_K+n);
+  const errAt = (pct, k)=> Math.max(ZONE_ERR_FLOOR, Math.round((pct*hm.sd + (1-pct)*sdR) * ZONE_CALIB_K/(ZONE_CALIB_K+k)));
+  const bands = ACSM_BANDS.map(b=>Object.assign({}, b, {
+    loBpm: Math.round(rs.mean + hrr*b.lo + offset),
+    hiBpm: Math.round(rs.mean + hrr*b.hi + offset),
+    err: hm.measured ? ZONE_ERR_FLOOR : errAt(b.hi, n) }));
+  // Bands abut, they do not overlap: 40–59 / 60–89, not 40–60 / 60–90.
+  for(let i=0;i<bands.length-1;i++) bands[i].hiBpm = bands[i+1].loBpm - 1;
+  return { ok:true, tier, hrmax:hm, rhr:rs, hrr, offset, nObs:n, bands,
+           errMod: bands[2].err, nextErr: hm.measured ? ZONE_ERR_FLOOR : errAt(0.60, n+ZONE_CALIB_K), weak: rs.n<3 };
+}
+// Heart Rate Ratio Method — Uth, Sørensen, Overgaard & Pedersen 2004 (Eur J Appl
+// Physiol 91:111–5), constant as corrected by the erratum (93:508–9): 15.0.
+// Derived in well-trained, mostly male subjects: weaker for untrained and female
+// users. Reported as a trend; the absolute is secondary and tier-labelled.
+const VO2_K = 15.0;
+function cooperVo2(metres){ return (metres - 504.9)/44.73; }   // Cooper 1968 12-min run
+function vo2Est(before){
+  before = before||todayStr(); const an = anchors();
+  if(an.vo2max && an.vo2max.value>0) return { ok:true, tier:'M', value:+an.vo2max.value, date:an.vo2max.date, method:an.vo2max.method };
+  const rs = rhrStats(before, 28), hm = hrMaxTanaka(before);
+  if(!hm) return { ok:false, reason:'nodob', n:rs.n };
+  if(rs.n<2) return { ok:false, reason:'norhr', n:rs.n };
+  return { ok:true, tier:'E', value: VO2_K*hm.bpm/rs.mean, n:rs.n };
+}
+function estAddDays(k, n){ const d = new Date(k+'T12:00:00'); d.setDate(d.getDate()+n); return dstr(d); }
+// Earliest 28-day window vs the latest one; needs ≥8 weeks of readings.
+function vo2Trend(){
+  const all = rhrReadings(todayStr(), 3650);
+  if(all.length<4) return { ready:false, n:all.length, span:0 };
+  const first = all[0].date, span = Math.round((new Date(todayStr()+'T12:00:00')-new Date(first+'T12:00:00'))/864e5);
+  if(span<56) return { ready:false, n:all.length, span };
+  const early = vo2Est(estAddDays(first,27)), late = vo2Est(todayStr());
+  if(!early.ok||!late.ok||early.tier!=='E'||late.tier!=='E') return { ready:false, n:all.length, span };
+  return { ready:true, span, from:early.value, to:late.value, pct:(late.value-early.value)/early.value*100, since:estAddDays(first,27) };
+}
+// Consistency: within-person dispersion of the user's own logs. No equation, no
+// external data — the highest-confidence read in the app. Not part of HEBE age.
+function consistencyRead(date){
+  date = date||todayStr();
+  const dates = confirmedDates(date).slice(-7);
+  if(dates.length<4) return { ok:false, n:dates.length };
+  const sl = dates.map(k=>+S.days[k].metrics.sleepH||0);
+  const mean = sl.reduce((a,b)=>a+b,0)/sl.length;
+  const sd = Math.sqrt(sl.reduce((a,b)=>a+(b-mean)*(b-mean),0)/(sl.length-1));
+  const tr = dates.map(k=>{ const m=S.days[k].metrics; return (+m.rideH||0)+(+m.workoutMin||0)/60; });
+  let gap=0, cur=0; tr.forEach(v=>{ if(v>0.25) cur=0; else { cur++; gap=Math.max(gap,cur); } });
+  return { ok:true, n:dates.length, sleepMean:mean, sleepSd:sd, sleepRange:Math.max.apply(null,sl)-Math.min.apply(null,sl),
+           trainDays:tr.filter(v=>v>0.25).length, maxGap:gap };
+}
+const fmt1 = v => (Math.round(v*10)/10).toFixed(1);
+// ---- estimation cards (Performance) ----
+function zonesCardHTML(){
+  const z = zonesFor(S.date);
+  let h = '<div class="card mt fade"><div class="est-head"><h3>Training zones</h3>'+(z.ok?tierBadge(z.tier):'')+'</div>'
+    + '<div class="sub">Heart-rate reserve (Karvonen) on ACSM’s intensity bands — Garber et al. 2011, Table 5. Max HR '+(z.ok&&z.hrmax.measured?'from your field test':'from Tanaka, 208 − 0.7 × age')+'.</div>';
+  if(!z.ok){
+    h += '<div class="sub mt">'+(z.reason==='nodob' ? 'Add your birth date in Setup and your bands appear here.'
+      : 'Add a resting heart rate on <b>Body</b> — three mornings, before getting up — and your bands appear here.')+'</div></div>';
+    return h;
+  }
+  h += '<div class="mt">';
+  z.bands.forEach(b=>{
+    h += '<div class="list-item zone-row"><span><b>'+b.name+'</b>'+(b.key==='mod'?' <span class="sub2">· usually called “zone 2”</span>':'')+'<div class="sub" style="font-size:11px">'+b.talk+' · '+b.rpe+'</div></span>'
+      + '<b class="zone-range">'+b.loBpm+'–'+b.hiBpm+' bpm <span class="sub2">±'+b.err+'</span></b></div>';
+  });
+  h += '</div>';
+  const r = z.rhr;
+  h += '<div class="sub mt">Resting HR '+Math.round(r.mean)+' bpm · '+r.n+' reading'+(r.n>1?'s':'')+(r.n>1&&r.min!==r.max?' · spread '+r.min+'–'+r.max:'')+' · last 28 days.'
+    + (z.weak ? ' <b>Log '+(3-r.n)+' more morning'+(3-r.n>1?'s':'')+'</b> and the resting-HR side settles.' : '')
+    + (z.tier==='E' && !z.weak ? ' <b>Log 3 easy sessions with an average HR</b> on Body and the moderate band tightens to ±'+z.nextErr+'.' : '')
+    + (z.tier==='C' ? ' Tuned to your last '+z.nObs+' easy sessions'+(z.nObs<6?' — '+(6-z.nObs)+' more tightens it to ±'+z.nextErr:'')+'.' : '')
+    + (z.tier==='M' ? ' Max HR measured '+(z.hrmax.date||'')+' — the bands are yours, not the population’s.' : '')
+    + '</div>';
+  h += '<details class="reveal"><summary>What these mean<span class="sub2"> · and why vigorous is one band</span></summary>'
+    + '<div class="sub" style="line-height:1.6">'
+    + '<b>Moderate</b> is the conversational band most apps label “zone 2”: you can talk in sentences. HEBE keeps ACSM’s own names because ACSM does not number its bands, and inventing a numbering on top of a cited source would be dressing.<br>'
+    + '<b>Vigorous</b> spans 60–89% of reserve because ACSM does not subdivide it — the health-outcome evidence does not support finer cuts, and a wider band you can trust beats a narrow one you cannot.<br>'
+    + 'Tanaka’s max-HR equation carries a standard deviation of about 10 bpm and assumes a healthy, non-medicated, non-smoking adult. That is where most of the ± comes from. '
+    + '<b>A $30 chest strap and a 20-minute field test beat this maths.</b> Enter a measured max HR under Anchor tests on Body and every band moves to Measured.'
+    + '</div></details>';
+  h += '</div>';
+  return h;
+}
+function aerobicCardHTML(){
+  const v = vo2Est(S.date), tr = vo2Trend();
+  let h = '<div class="card mt fade"><div class="est-head"><h3>Aerobic capacity</h3>'+(v.ok?tierBadge(v.tier):'')+'</div>';
+  if(!v.ok){
+    h += '<div class="sub">'+(v.reason==='nodob' ? 'Add your birth date in Setup.' : 'Appears after two resting-HR readings on Body ('+v.n+' so far).')+'</div></div>';
+    return h;
+  }
+  if(v.tier==='M'){
+    h += '<div class="sub">Measured: <b>'+fmt1(v.value)+' ml/kg/min</b>'+(v.method?' · '+esc(v.method):'')+(v.date?' · '+v.date:'')+'.</div>';
+  } else {
+    if(tr.ready) h += '<div class="mt" style="font-size:14px">Your estimate has moved from <b>'+fmt1(tr.from)+'</b> to <b>'+fmt1(tr.to)+'</b> ml/kg/min ('+(tr.pct>0?'+':'')+fmt1(tr.pct)+'%) since '+tr.since+'.</div>';
+    else h += '<div class="sub">The trend — the part worth reading — appears after 8 weeks of resting-HR readings ('+(tr.span?Math.round(tr.span/7)+' week'+(Math.round(tr.span/7)===1?'':'s'):'0 weeks')+' so far).</div>';
+    h += '<div class="sub mt">Current estimate ≈ <b>'+Math.round(v.value)+' ml/kg/min</b> · estimated from age and resting HR · Heart Rate Ratio Method (Uth et al. 2004, constant 15.0 as corrected by the erratum).</div>';
+    h += '<div class="sub mt"><b>Read the direction, not the number.</b> The method was derived in well-trained, mostly male subjects; the absolute is weaker if you are untrained or female. A free Cooper 12-minute run replaces it with a measurement — enter it under Anchor tests on Body.</div>';
+  }
+  h += '</div>';
+  return h;
+}
+function consistencyCardHTML(){
+  const c = consistencyRead(S.date);
+  let h = '<div class="card mt fade"><div class="est-head"><h3>Consistency</h3><span class="badge gray tierb">your own logs · no estimate</span></div>';
+  if(!c.ok){ h += '<div class="sub">Appears after four logged nights ('+c.n+' so far).</div></div>'; return h; }
+  const sdTxt = fmt1(c.sleepSd);
+  h += '<div class="mt" style="font-size:14px">Sleep varied <b>±'+sdTxt+' h</b> night to night over the last '+c.n+' nights (range '+fmt1(c.sleepRange)+' h).</div>';
+  h += '<div class="sub mt">'+(c.sleepSd>1.0 ? 'Steadying that is worth more than adding an hour.' : c.sleepSd<=0.5 ? 'Steady. That is the part most people never get.' : 'Fairly steady — hold it.')
+    + ' Training on '+c.trainDays+' of '+c.n+' days'+(c.maxGap>=3?', longest gap '+c.maxGap+' days.':'.')+'</div>';
+  h += '<div class="sub mt">Not part of your HEBE age — a read of your own regularity, straight from what you logged.</div>';
+  h += '</div>';
+  return h;
+}
+// ---- Body: readings line, session row, anchor tests ----
+function rhrLineHTML(){
+  const r = rhrStats(S.date, 28);
+  if(!r.n) return '<div class="sub mt" style="font-size:11px">No readings in the last 28 days. Take it on waking, before getting up — three mornings is enough to start.</div>';
+  return '<div class="sub mt" style="font-size:11px">'+r.n+' reading'+(r.n>1?'s':'')+' in 28 days · mean '+Math.round(r.mean)+' bpm'+(r.n>1&&r.min!==r.max?' · spread '+r.min+'–'+r.max:'')+(r.n<3?' · '+(3-r.n)+' more and your zones settle':'')+'</div>';
+}
+function sessionRowHTML(d){
+  const rpe = d.heart && d.heart.sessRPE || '';
+  const chip = (k,l)=>'<span class="chip rpe-chip '+(rpe===k?'on':'')+'" data-rpe="'+k+'">'+l+'</span>';
+  return '<div class="sub mt" style="font-weight:600;color:var(--text)">Today’s session <span class="sub2">(optional — tunes your zones)</span></div>'
+    + '<div class="frow" style="margin-top:6px"><div><label class="f">Average HR (bpm)</label><input type="number" id="sessHrIn" value="'+(d.heart&&d.heart.sessHR||'')+'" placeholder="from your watch"></div>'
+    + '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding-bottom:4px">'+chip('easy','Easy · could chat')+chip('moderate','Moderate')+chip('hard','Hard')+'</div></div>'
+    + '<div class="sub" style="font-size:11px;margin-top:4px">Only easy sessions calibrate — “could chat” is the one effort you can report reliably.</div>';
+}
+function anchorsCardHTML(){
+  const an = anchors();
+  let h = '<div class="card mt fade"><h3>Anchor tests</h3><div class="sub">One real measurement beats our maths. Each of these moves an estimate from <b>E</b> to <b>M</b>.</div>';
+  h += '<div class="frow mt"><div><label class="f">Measured max HR (bpm)</label><input type="number" id="anchorHrmax" value="'+(an.hrmax&&an.hrmax.bpm||'')+'" placeholder="field test, chest strap"></div>'
+    + '<div><label class="f">Cooper 12-min distance (m)</label><input type="number" id="anchorCooper" value="'+(an.vo2max&&an.vo2max.method==='Cooper 12-min'&&an.vo2max.metres||'')+'" placeholder="e.g. 2600"></div></div>';
+  h += '<div class="frow mt"><div><label class="f">Measured VO₂max (ml/kg/min, lab or device)</label><input type="number" step="0.1" id="anchorVo2" value="'+(an.vo2max&&an.vo2max.method!=='Cooper 12-min'&&an.vo2max.value||'')+'" placeholder="optional"></div>'
+    + '<button class="btn primary" id="saveAnchors">Save</button></div>';
+  const lines = [];
+  if(an.hrmax&&an.hrmax.bpm) lines.push('Max HR '+an.hrmax.bpm+' bpm · '+(an.hrmax.date||''));
+  if(an.vo2max&&an.vo2max.value) lines.push('VO₂max '+fmt1(an.vo2max.value)+' ml/kg/min · '+esc(an.vo2max.method||'')+' · '+(an.vo2max.date||''));
+  h += '<div class="sub mt" style="font-size:11px">'+(lines.length ? lines.join('<br>') : 'Nothing measured yet — zones and aerobic capacity are estimates until then, and say so.')+'</div>';
+  h += '<div class="sub mt" style="font-size:11px">Max-HR field test: warm up 10 min, then 3 min hard, 2 min easy, 3 min as hard as you can hold, finishing with a 30-second all-out effort; the peak reading is your max. Not for anyone with a heart condition or on heart-rate-limiting medication.</div>';
+  h += '</div>';
+  return h;
+}
+function saveAnchors(){
+  const an = Object.assign({}, anchors());
+  const hm = +document.getElementById('anchorHrmax').value||0;
+  const cp = +document.getElementById('anchorCooper').value||0;
+  const vo = +document.getElementById('anchorVo2').value||0;
+  const today = todayStr();
+  if(hm>=120 && hm<=230) an.hrmax = { bpm:hm, date:(an.hrmax&&an.hrmax.bpm===hm&&an.hrmax.date)||today, method:'field test' };
+  else if(!hm) delete an.hrmax;
+  else { toast('Max HR outside 120–230 bpm — check the number'); return; }
+  if(vo>0) an.vo2max = { value:vo, date:(an.vo2max&&an.vo2max.value===vo&&an.vo2max.date)||today, method:'measured' };
+  else if(cp>0) an.vo2max = { value:cooperVo2(cp), metres:cp, date:(an.vo2max&&an.vo2max.metres===cp&&an.vo2max.date)||today, method:'Cooper 12-min' };
+  else delete an.vo2max;
+  S.settings.anchors = an; persist(); pushSettings(); render(); toast('Anchors saved');
 }
 
 // ---------- food ----------
@@ -1598,7 +1840,7 @@ async function pullCloud(){
     // pull synced settings (API key, model, targets, dob, name) — never overwrite
     // this device's own Firebase config
     if(md.settings){ const s=md.settings; delete s.fbConfig;
-      ['apiKey','model','proteinTarget','dob','name'].forEach(k=>{ if(s[k]!=null && !S.settings[k]) S.settings[k]=s[k]; });
+      ['apiKey','model','proteinTarget','dob','name','anchors'].forEach(k=>{ if(s[k]!=null && !S.settings[k]) S.settings[k]=s[k]; });
       if(s.apiKey) S.settings.apiKey = s.apiKey;
     }
   }
@@ -1937,6 +2179,8 @@ function renderPerf(){
   h += '<div class="card"><h3>Strength consistency</h3><div class="sub">workout minutes per day</div><div class="chartbox mt"><canvas id="chLift"></canvas></div></div>';
   h += '<div class="card"><h3>Cardio volume</h3><div class="sub">riding hours (commutes count — they are zone 2)</div><div class="chartbox mt"><canvas id="chRide"></canvas></div></div>';
   h += '</div>';
+  // Estimation layer — new cards appended below the existing three; nothing above moves.
+  h += zonesCardHTML() + aerobicCardHTML() + consistencyCardHTML();
   return h;
 }
 function perfCharts(){
@@ -2063,7 +2307,7 @@ function renderFuel(){
     h += '<div class="sub mt">'+t('missing',miss.join(', '))+'</div>';
   } else {
     h += '<div class="mt">';
-    h += '<div class="list-item"><span>'+t('bmr')+'</span><b>'+Math.round(bm)+' kcal</b></div>';
+    h += '<div class="list-item"><span>'+t('bmr')+' '+tierBadge('E', t('tierE')+' · Mifflin–St Jeor · ±10 %')+'</span><b>'+Math.round(bm)+' kcal</b></div>';
     if(N.any){
       h += '<div class="list-item"><span>'+t('loggedIntake')+'</span><b>'+Math.round(N.t.kcal)+' kcal</b></div>';
       h += '<div class="list-item"><span>'+t('intakeMinus')+'</span><b>'+(N.t.kcal-bm>0?'+':'')+Math.round(N.t.kcal-bm)+' kcal</b></div>';
@@ -2178,6 +2422,8 @@ function renderBody(){
     + '<div class="frow mt"><div><label class="f">Resting HR today (bpm)</label><input type="number" id="rhrIn" value="'+(d.heart.rhr||'')+'" placeholder="e.g. 54"></div>'
     + '<div><label class="f">HRV (ms, if known)</label><input type="number" id="hrvIn" value="'+(d.wearable.hrv||'')+'" placeholder="optional"></div>'
     + '<button class="btn primary" id="saveHeart">Save</button></div>'
+    + rhrLineHTML()
+    + sessionRowHTML(d)
     + '<div class="chartbox mt"><canvas id="chRhr"></canvas></div><div class="sub" style="font-size:11px">green band = athlete range 45–60 bpm</div></div>';
   h += '<div class="card"><h3>Skin</h3><div class="sub">photo read by AI'+(S.settings.apiKey?'':' (needs API key)')+' — or score it yourself</div>'
     + '<div class="frow mt"><div><label class="f">Photo</label><input type="file" id="skinFile" accept="image/*"></div>'
@@ -2187,6 +2433,7 @@ function renderBody(){
     + '<div class="chartbox mt"><canvas id="chSkin"></canvas></div></div>';
   h += '</div>';
   h += '<div class="card mt fade"><h3>Wearable slots</h3><div class="sub">Phase 2: Whoop / Apple Health fill hrv, resting HR, recovery % and strain automatically — the data model is already wired for it.</div></div>';
+  h += anchorsCardHTML();
   return h;
 }
 function bodyCharts(){
@@ -2380,6 +2627,8 @@ document.addEventListener('click', e=>{
   if(gd){ goToDate(gd.dataset.goday); return; }
   const wt = e.target.closest('.wt-chip');
   if(wt){ document.querySelectorAll('.wt-chip').forEach(x=>x.classList.remove('on')); wt.classList.add('on'); return; }
+  const rp = e.target.closest('.rpe-chip');
+  if(rp){ const was=rp.classList.contains('on'); document.querySelectorAll('.rpe-chip').forEach(x=>x.classList.remove('on')); if(!was) rp.classList.add('on'); return; }
   const dc = e.target.closest('.dev-chip');
   if(dc){ const id=dc.dataset.chip; if(activeChips.has(id)){activeChips.delete(id);dc.classList.remove('on');} else {activeChips.add(id);dc.classList.add('on');} return; }
   const del = e.target.closest('[data-delfood]');
@@ -2420,7 +2669,10 @@ document.addEventListener('click', e=>{
     case 'saveHeart': { const d=ensureDay(S.date);
       const r=+document.getElementById('rhrIn').value||null, hv=+document.getElementById('hrvIn').value||null;
       d.heart.rhr=r; d.wearable.hrv=hv; if(r) d.wearable.restingHR=r;
+      const sh=document.getElementById('sessHrIn'); d.heart.sessHR = sh ? (+sh.value||null) : (d.heart.sessHR||null);
+      const rc=document.querySelector('.rpe-chip.on'); d.heart.sessRPE = rc ? rc.dataset.rpe : null;
       saveDay(S.date); render(); toast('Heart data saved'); break; }
+    case 'saveAnchors': saveAnchors(); break;
     case 'saveSkin': { const d=ensureDay(S.date);
       const f=document.getElementById('skinFile').files[0];
       const self=+document.getElementById('skinSelf').value||null;
