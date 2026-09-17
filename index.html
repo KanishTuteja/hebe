@@ -391,6 +391,18 @@ function saveDay(date){
   persist();
   cloudPush(date);
 }
+// Side-feature write (heart readings, food entries, weight): persists and syncs
+// WITHOUT bumping the top-level updatedAt. confirmedDates() keys on updatedAt>0,
+// so a plain saveDay here would mark an un-checked-in day as logged and pull its
+// template defaults into the 21-day window. If the day is already logged, the
+// write is a real edit and goes through saveDay so the age chain recomputes.
+function touchDay(date){
+  const d = ensureDay(date);
+  if(d.updatedAt>0){ saveDay(date); return; }
+  d.touchedAt = Date.now();          // lets pullCloud move this edit between devices
+  persist();
+  cloudPush(date);
+}
 // hebeAge is an EMA chained off the previous logged day, so a day logged out of
 // order (backfill) invalidates every day after it. Recompute the tail in order.
 function recomputeAgesFrom(date){
@@ -1642,7 +1654,7 @@ async function addFood(name, product, grams, est){
   const q = document.getElementById('nQty'); if(q) q.value='';
   const e2 = document.getElementById('nEst'); if(e2) e2.checked=false;
   resetPortions();
-  saveDay(S.date); render();
+  touchDay(S.date); render();
   toast(t('addedToast',res.score)+(grams?' · '+grams+' g':''));
 }
 
@@ -1665,7 +1677,7 @@ function addWholeFood(key, grams, est){
   const q = document.getElementById('nQty'); if(q) q.value='';
   const e2 = document.getElementById('nEst'); if(e2) e2.checked=false;
   resetPortions();
-  saveDay(S.date); render();
+  touchDay(S.date); render();
   toast(foodName(a)+' — '+grams+' g'+(est?' ('+t('estimated')+')':''));
 }
 function repeatOffenders(rangeDays){
@@ -1832,7 +1844,8 @@ async function pullCloud(){
   const snap = await col.collection('days').get();
   let pulled=0;
   snap.forEach(doc=>{ const r=doc.data(), l=S.days[doc.id];
-    if(!l||(r.updatedAt||0)>(l.updatedAt||0)){ S.days[doc.id]=r; pulled++; } });
+    // newer confirmed write wins; on a tie, a newer side-feature write (touchedAt) wins
+    if(!l||(r.updatedAt||0)>(l.updatedAt||0)||((r.updatedAt||0)===(l.updatedAt||0)&&(r.touchedAt||0)>(l.touchedAt||0))){ S.days[doc.id]=r; pulled++; } });
   const meta = await col.get();
   if(meta.exists){ const md=meta.data();
     if(md.templates && (!localStorage.getItem('hebe_templates'))) S.templates=md.templates;
@@ -2470,7 +2483,7 @@ async function scoreSkinPhoto(file){
     const p = extractJSON(textFromContent(j));
     const d = ensureDay(S.date);
     d.skin.score = clamp(Math.round(p.score),1,10); d.skin.notes = p.notes||'';
-    saveDay(S.date); render(); toast('Skin read: '+d.skin.score+'/10');
+    touchDay(S.date); render(); toast('Skin read: '+d.skin.score+'/10');
   }catch(e){ console.warn(e); toast('Skin read failed — you can self-score instead'); }
 }
 
@@ -2632,7 +2645,7 @@ document.addEventListener('click', e=>{
   const dc = e.target.closest('.dev-chip');
   if(dc){ const id=dc.dataset.chip; if(activeChips.has(id)){activeChips.delete(id);dc.classList.remove('on');} else {activeChips.add(id);dc.classList.add('on');} return; }
   const del = e.target.closest('[data-delfood]');
-  if(del){ const d=ensureDay(S.date); d.foods.splice(+del.dataset.delfood,1); saveDay(S.date); render(); return; }
+  if(del){ const d=ensureDay(S.date); d.foods.splice(+del.dataset.delfood,1); touchDay(S.date); render(); return; }
   const nh = e.target.closest('.nuthead');
   if(nh){ nh.parentElement.classList.toggle('open'); return; }
   const lg = e.target.closest('[data-lang]');
@@ -2671,13 +2684,13 @@ document.addEventListener('click', e=>{
       d.heart.rhr=r; d.wearable.hrv=hv; if(r) d.wearable.restingHR=r;
       const sh=document.getElementById('sessHrIn'); d.heart.sessHR = sh ? (+sh.value||null) : (d.heart.sessHR||null);
       const rc=document.querySelector('.rpe-chip.on'); d.heart.sessRPE = rc ? rc.dataset.rpe : null;
-      saveDay(S.date); render(); toast('Heart data saved'); break; }
+      touchDay(S.date); render(); toast('Heart data saved'); break; }
     case 'saveAnchors': saveAnchors(); break;
     case 'saveSkin': { const d=ensureDay(S.date);
       const f=document.getElementById('skinFile').files[0];
       const self=+document.getElementById('skinSelf').value||null;
       if(f) scoreSkinPhoto(f);
-      else if(self){ d.skin.score=clamp(self,1,10); saveDay(S.date); render(); toast('Skin score saved'); }
+      else if(self){ d.skin.score=clamp(self,1,10); touchDay(S.date); render(); toast('Skin score saved'); }
       break; }
     case 'genReport': genWeekly(); break;
     case 'fbIn': signInGoogle(); break;
@@ -2704,7 +2717,7 @@ document.addEventListener('input', e=>{
 document.addEventListener('change', e=>{
   if(e.target.id==='importFile') doImport(e.target.files[0]);
   if(e.target.id==='nWeight'){ const d=ensureDay(S.date); const v=parseFloat(e.target.value);
-    d.weightKg=(isFinite(v)&&v>0)?v:null; saveDay(S.date); render(); return; }
+    d.weightKg=(isFinite(v)&&v>0)?v:null; touchDay(S.date); render(); return; }
   if(e.target.id==='nHeight'){ const v=parseFloat(e.target.value);
     S.settings.heightCm=(isFinite(v)&&v>0)?v:null; persist(); pushSettings(); render(); return; }
   if(e.target.id==='ovSleep'||e.target.id==='ovLoad'){ destroyCharts(); reportCharts(); }
