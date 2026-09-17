@@ -1033,7 +1033,7 @@ en:{
  kg:"kg", heightCm:"height cm",
  missing:"Missing {0}. No burn figure is calculable without them, and an invented one would corrupt the correlations later — the same rule as <b>estimated</b>.",
  mTodayWeight:"today’s weight", mHeight:"your height", mDob:"your date of birth (Setup)",
- bmr:"Basal metabolic rate", tierE:"Estimated", loggedIntake:"Logged intake", intakeMinus:"Intake minus BMR",
+ bmr:"Basal metabolic rate", tierE:"Estimated", bmrSexNote:"Sex not given — the range spans the female and male equations. HEBE doesn’t pick one for you.", to:"to", loggedIntake:"Logged intake", intakeMinus:"Intake minus BMR",
  proteinPerKg:"Protein per kg", weightTrend:"Weight trend · {0} weigh-ins over {1} days",
  bmrNote:"<b>BMR is not your total burn.</b> Real expenditure depends on training and everything else — not honestly calculable without a device. The method that works: weigh every morning for three weeks, then read the trend against average intake. That is measured, not estimated.",
  micronutrients:"Micronutrients", atTarget:"{0} of {1} at target",
@@ -1076,7 +1076,7 @@ fr:{
  kg:"kg", heightCm:"taille cm",
  missing:"Il manque {0}. Aucun chiffre de dépense n’est calculable sans ça, et une valeur inventée corromprait les corrélations plus tard — la même règle que <b>estimé</b>.",
  mTodayWeight:"le poids du jour", mHeight:"la taille", mDob:"la date de naissance (Réglages)",
- bmr:"Métabolisme de base", tierE:"Estimé", loggedIntake:"Apport enregistré", intakeMinus:"Apport moins métabolisme de base",
+ bmr:"Métabolisme de base", tierE:"Estimé", bmrSexNote:"Sexe non précisé — la fourchette couvre les équations femme et homme. HEBE ne choisit pas à votre place.", to:"à", loggedIntake:"Apport enregistré", intakeMinus:"Apport moins métabolisme de base",
  proteinPerKg:"Protéines par kg", weightTrend:"Tendance du poids · {0} pesées sur {1} jours",
  bmrNote:"<b>Le métabolisme de base n’est pas la dépense totale.</b> La dépense réelle dépend de l’entraînement et du reste — impossible à calculer honnêtement sans appareil. La bonne méthode : se peser chaque matin pendant trois semaines, puis lire la tendance face à l’apport moyen. C’est mesuré, pas estimé.",
  micronutrients:"Micronutriments", atTarget:"{0} sur {1} à l’objectif",
@@ -1226,14 +1226,22 @@ function nutritionCoverage(date){
 
 // Mifflin-St Jeor. Returns null unless weight, height and age all exist -
 // no estimate stands in for a missing measurement.
-function bmrFor(date){
+// Mifflin–St Jeor: +5 for male, −161 for female. With sex unknown HEBE does not
+// pick a term — it reports the range spanning both equations (the decision is the
+// same across it), consistent with how zones are shown. Method error ~±10 %.
+function bmrBounds(date){
   const d = S.days[date]; if(!d || !d.weightKg) return null;
   const h = S.settings.heightCm, a = chronoAge(date);
   if(!h || !a) return null;
-  // Mifflin–St Jeor: +5 for male, −161 for female. "Prefer not to say" takes the
-  // lower value — under-estimating burn is the protective direction for intake.
-  const sexTerm = userSex()==='male' ? 5 : -161;
-  return 10*d.weightKg + 6.25*h - 5*a + sexTerm;
+  const base = 10*d.weightKg + 6.25*h - 5*a, sx = userSex();
+  if(sx==='male')   return { lo: base+5,   hi: base+5,   known:true };
+  if(sx==='female') return { lo: base-161, hi: base-161, known:true };
+  return { lo: base-161, hi: base+5, known:false };
+}
+// Single number only when sex is known; null otherwise — use bmrBounds for display.
+function bmrFor(date){
+  const b = bmrBounds(date);
+  return b && b.known ? b.lo : null;
 }
 
 // Weight trend across every day actually weighed.
@@ -2307,7 +2315,9 @@ function renderFuel(){
   }
   h += '</div>';
 
-  const bm = bmrFor(S.date), wt = weightTrend();
+  const bb = bmrBounds(S.date), bm = bb ? bb.lo : null, wt = weightTrend();
+  const bmTxt = bb ? (bb.known ? Math.round(bb.lo)+' kcal' : Math.round(bb.lo)+'–'+Math.round(bb.hi)+' kcal') : '';
+  const diffTxt = v => (v>0?'+':'')+Math.round(v);
   h += '<div class="card"><h3>'+t('bodyEnergy')+'</h3>'
     + '<div class="sub" style="margin-top:2px">'+t('weighMorning')+'</div>'
     + '<div class="logrow mt">'
@@ -2320,10 +2330,11 @@ function renderFuel(){
     h += '<div class="sub mt">'+t('missing',miss.join(', '))+'</div>';
   } else {
     h += '<div class="mt">';
-    h += '<div class="list-item"><span>'+t('bmr')+' '+tierBadge('E', t('tierE')+' · Mifflin–St Jeor · ±10 %')+'</span><b>'+Math.round(bm)+' kcal</b></div>';
+    h += '<div class="list-item"><span>'+t('bmr')+' '+tierBadge('E', t('tierE')+' · Mifflin–St Jeor · ±10 %')+'</span><b>'+bmTxt+'</b></div>';
+    if(!bb.known) h += '<div class="sub" style="font-size:11px;margin:2px 0 4px">'+t('bmrSexNote')+'</div>';
     if(N.any){
       h += '<div class="list-item"><span>'+t('loggedIntake')+'</span><b>'+Math.round(N.t.kcal)+' kcal</b></div>';
-      h += '<div class="list-item"><span>'+t('intakeMinus')+'</span><b>'+(N.t.kcal-bm>0?'+':'')+Math.round(N.t.kcal-bm)+' kcal</b></div>';
+      h += '<div class="list-item"><span>'+t('intakeMinus')+'</span><b>'+(bb.known ? diffTxt(N.t.kcal-bb.lo) : diffTxt(N.t.kcal-bb.hi)+' '+t('to')+' '+diffTxt(N.t.kcal-bb.lo))+' kcal</b></div>';
       h += '<div class="list-item"><span>'+t('proteinPerKg')+'</span><b>'+(Math.round(N.t.p/d.weightKg*100)/100)+' g/kg</b></div>';
     }
     h += '</div>';
