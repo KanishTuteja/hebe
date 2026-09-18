@@ -2121,7 +2121,7 @@ function renderHome(){
     + '<span class="hero-num" id="ageNum">'+age.toFixed(2)+'</span>'
     + ageBadge
     + '</div>'
-    + '<div class="sub" style="margin-top:4px">chronological '+chrono.toFixed(2)+' · '+(age<=chrono? 'living '+(chrono-age).toFixed(2)+' yrs younger':'running '+(age-chrono).toFixed(2)+' yrs older')+'</div>'
+    + '<div class="sub" style="margin-top:4px">chronological '+chrono.toFixed(2)+' · <span id="ageDelta" data-chrono="'+chrono+'">'+(age<=chrono? 'living '+(chrono-age).toFixed(2)+' yrs younger':'running '+(age-chrono).toFixed(2)+' yrs older')+'</span></div>'
     + (function(){var r=todaysRead(S.date); return r.text? '<div class="readline '+(r.dir>0?'up':r.dir<0?'':'flat')+'">'+esc(r.text)+'</div>':'';})()
     + (ageNote ? '<div class="sub" style="margin-top:8px;font-size:11.5px;line-height:1.5;background:var(--amber-bg);border:1px solid var(--line2);padding:8px 10px;border-radius:9px">'+ageNote+'</div>' : '')
     + '<div class="chartbox" style="height:120px;margin-top:12px"><canvas id="chAgeSpark"></canvas></div>'
@@ -2247,8 +2247,13 @@ function homeCharts(){
   const el = document.getElementById('ageNum');
   if(el && !el._animated){ el._animated=true;
     const target = parseFloat(el.textContent), start = target + 0.6; let t0=null;
+    // the "yrs younger / older" sub-line follows the same animated value, so the
+    // two never disagree mid-count (it lands on the first check-in, the most-watched second)
+    const dl = document.getElementById('ageDelta'), chrono = dl ? parseFloat(dl.dataset.chrono) : NaN;
+    const sub = v => { if(!dl || !isFinite(chrono)) return; dl.textContent = v<=chrono ? 'living '+(chrono-v).toFixed(2)+' yrs younger' : 'running '+(v-chrono).toFixed(2)+' yrs older'; };
     const step = ts=>{ if(!t0) t0=ts; const p=Math.min(1,(ts-t0)/1200), e2=1-Math.pow(1-p,3);
-      el.textContent=(start+(target-start)*e2).toFixed(2); if(p<1) requestAnimationFrame(step); };
+      const v = start+(target-start)*e2; el.textContent=v.toFixed(2); sub(v); if(p<1) requestAnimationFrame(step); };
+    sub(start);
     requestAnimationFrame(step);
   }
 }
