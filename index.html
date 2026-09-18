@@ -83,6 +83,15 @@ h3{font-size:13.5px;font-weight:600;margin:0}
 .est-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px}
 .est-head h3{margin:0}
 .zone-row .zone-range{font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}
+.ob-dots{display:flex;gap:6px;margin-bottom:14px}.ob-dots span{width:22px;height:4px;border-radius:2px;background:var(--line2)}.ob-dots span.on{background:var(--teal)}
+.ob-truth{display:flex;gap:10px;margin-top:10px;font-size:13px;line-height:1.5}.ob-truth b{display:block}
+.ob-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--line);font-size:13px}.ob-row:last-child{border-bottom:none}
+.ob-row input{width:84px;padding:5px 8px;font-size:13px;text-align:right}.ob-row select{padding:5px 8px;font-size:12.5px}
+.ob-row .tag{font-size:10.5px;color:var(--text3)}.ob-row .tag.heard{color:var(--teal-dk)}
+.ob-nav{display:flex;gap:8px;justify-content:space-between;align-items:center;margin-top:16px;position:sticky;bottom:-22px;background:var(--card);padding:10px 0 22px;margin-bottom:-22px}
+.ob-lock{display:flex;gap:10px;align-items:flex-start;padding:5px 0;font-size:12.5px;line-height:1.45}
+.ob-group{margin-top:12px}.ob-group .k{font-size:11px;letter-spacing:.05em;text-transform:uppercase;font-weight:700;color:var(--text2);margin-bottom:4px}
+textarea.ob{min-height:74px;resize:vertical;line-height:1.45}
 .coach-tag{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--purple);font-weight:600}
 .coach-tag svg{width:16px;height:16px;flex-shrink:0}
 .insight svg{width:17px;height:17px;flex-shrink:0}
@@ -1048,7 +1057,53 @@ en:{
  ofNutrients:"of {0} nutrients at target", furthestShort:"Furthest short:",
  allAtTarget:"Every nutrient at target today.",
  nothingWeighedHome:"Nothing weighed yet. <b class='lnk' data-page='fuel'>Log a food with its weight</b> and the 22 nutrients fill in.",
- addedToast:"Added — {0}/100", scoringToast:"Scoring '{0}'…"
+ addedToast:"Added — {0}/100", scoringToast:"Scoring '{0}'…",
+ // ---- onboarding (English only for this release; a French block here is all it needs) ----
+ ob_hook:"Everyone can check their credit score. Nobody can check their health.",
+ ob_intro:"HEBE turns what you actually do — sleep, training, food, movement — into one number you can watch and move.",
+ ob_before:"Before you start, four things that are true",
+ ob_t1h:"This is not medical advice.", ob_t1:"HEBE doesn’t diagnose anything, doesn’t treat anything, and doesn’t replace a doctor. If something’s wrong, see one.",
+ ob_t2h:"These are estimates, not measurements.", ob_t2:"HEBE applies published research to what you log. It’s an informed estimate of how your habits are tracking — not a reading taken off your body. Where we’re uncertain, we show it.",
+ ob_t3h:"The number needs about two weeks to mean anything.", ob_t3:"It’ll move around before then while it finds your baseline. That’s it calibrating, not you declining.",
+ ob_t4h:"Your data is yours.", ob_t4:"It stays on your device unless you turn on sync. We never sell it, never share it, and you can export the whole thing — readable, forever — at any time.",
+ ob_start:"Start", ob_noAccount:"No account needed. About three minutes.", ob_skip:"I already use HEBE — take me to sign in / import",
+ ob_back:"Back", ob_next:"Continue", ob_edit:"edit",
+ ob_s1h:"The minimum", ob_s1sub:"Three things, and that’s the whole form. Everything else comes up later, in context.",
+ ob_name:"First name", ob_dob:"Birth date", ob_sex:"Biological sex", ob_sexNa:"Prefer not to say", ob_sexF:"Female", ob_sexM:"Male",
+ ob_sexWhy:"Used for nutrient targets and a few equations. If you’d rather not say, HEBE takes the more protective target.",
+ ob_s2h:"Do you know your resting heart rate?",
+ ob_s2how:"If not, here’s how: tomorrow morning, before you get out of bed, count your pulse for 30 seconds and double it. Do it three mornings and HEBE uses the average. You can add it later on the Body screen.",
+ ob_s2label:"Resting HR (bpm)", ob_s2ph:"e.g. 62", ob_s2go:"Show my zones", ob_s2skip:"I’ll measure it — continue", ob_s2bad:"Resting HR should be between 30 and 120 bpm.",
+ ob_zonesH:"Your training zones", ob_zone2:"usually called “zone 2”",
+ ob_zonesNote:"Estimated from your age and one resting-HR reading · ±{0} bpm on the moderate band. Two more mornings steady the resting-HR side; a 20-minute field test with a chest strap makes them measured. Bands follow ACSM (Garber et al. 2011).",
+ ob_promiseH:"Your HEBE age starts today.", ob_promise:"First reliable read at ~14 days. Settled baseline at ~21. Until then, watch the direction, not the number.",
+ ob_s3h:"Tell me about a normal weekday", ob_s3sub:"Anything is fine — HEBE reads it into a starting pattern and shows you exactly what it understood. You correct it.",
+ ob_s3ph:"“up at 6, ride to the gym, sit at a desk all day, big dinner around 7, bed by 11”",
+ ob_read:"Read it", ob_or:"or pick a starting point:", ob_s3skip:"Skip — use a starting point later",
+ ob_p_desk:"Desk job, little training", ob_p_moderate:"Moderately active", ob_p_active:"Trains most days",
+ ob_heard:"Here’s what I heard.", ob_fix:"Anything wrong? Change the number.", ob_wakeAt:"up ~{0}", ob_bedAt:"bed ~{0}",
+ ob_low:"I only caught {0} from that — not enough to build a day on. Pick a starting point above, or fill in the blanks. Anything left blank uses the grey default.",
+ ob_lowNone:"I didn’t understand much of that. Pick a starting point above, or fill in the blanks. Anything left blank uses the grey default.",
+ ob_presetFrom:"Starting from “{0}” — every number here is an assumption. Change any of them.",
+ ob_f_sleepH:"sleep", ob_f_sitH:"sitting", ob_f_workoutMin:"a workout", ob_f_rideH:"cardio", ob_f_fastingH:"meal timing", ob_f_stress:"stress", ob_f_sunMin:"time outside", ob_f_supplements:"supplements", ob_f_water:"water", ob_f_protein:"protein",
+ ob_tagHeard:"heard", ob_tagHeardDur:"heard · duration assumed", ob_tagEdited:"you set this", ob_tagTimes:"from your bed and wake times", ob_tagMeals:"from your meal times", ob_tagAssumed:"assumed — not in what you wrote", ob_tagPreset:"preset", ob_tagDerived:"derived", ob_tagAssumedShort:"assumed",
+ ob_rSleep:"Sleep", ob_rSit:"Sitting", ob_rWork:"Gym / workout", ob_rRide:"Cardio (ride, run, walk)", ob_rFast:"Overnight fast", ob_rProt:"Protein target", ob_rAct:"Overall", ob_rTrain:"Training days",
+ ob_weH:"And a weekend day?", ob_weSub:"Shorter is fine — “same but no work, sleep in.”", ob_wePh:"“sleep in, long walk, big lunch out”", ob_weRead:"Read it",
+ ob_weAssumed:"Nothing yet — HEBE will assume a weekend day: less sitting, no commute, no session unless you say so. You can fix it any time in Setup.",
+ ob_s4h:"What HEBE knows about you", ob_s4sub:"This is your record. You can read all of it, change any of it, and take it with you.",
+ ob_stated:"Stated by you", ob_derived:"Derived by HEBE", ob_unknown:"Not known yet",
+ ob_kYou:"You", ob_kWeekday:"Weekday", ob_kWeekend:"Weekend", ob_kRhr:"Resting HR", ob_kZones:"Training zones", ob_kProtein:"Protein target", ob_kAge:"HEBE age",
+ ob_oneReading:"1 of 3 readings", ob_notYet:"not yet", ob_zonesAfterRhr:"appear after a resting-HR reading", ob_baselineForming:"baseline forming · 0 / 14 days",
+ ob_sumSleep:"sleep {0} h", ob_sumSit:"sits {0} h", ob_sumGym:"gym {0} min", ob_sumRide:"cardio {0} min", ob_sumFast:"fast {0} h",
+ ob_unknownList:"Injuries · past conditions · bloodwork · body measurements", ob_unknownNote:"HEBE will ask about these as they come up — never all at once.",
+ ob_lockH:"Your body, as HEBE can see it today",
+ ob_lockHabits:"Habits", ob_lockHabitsD:"unlocked. You’re logging.",
+ ob_lockCardio:"Cardio", ob_lockCardioD:"unlocks with a 20-min field test (~$30 chest strap)",
+ ob_lockBody:"Body", ob_lockBodyD:"unlocks with a tape measure and a scale",
+ ob_lockBlood:"Bloodwork", ob_lockBloodD:"unlocks with a standard panel — entered by you, never guessed",
+ ob_lockNote:"HEBE won’t guess at the locked ones. It’ll track them properly once they’re real.",
+ ob_sample:"Load a sample week so I can explore first (fake data — clear it later in Setup)", ob_done:"Start HEBE",
+ ob_welcome:"Welcome, {0}. Log today below.", ob_needName:"Add your first name", ob_needDob:"Add your birth date", ob_badDob:"Check the birth date"
 },
 fr:{
  nutrition:"Nutrition", logFood:"Enregistrer un aliment",
@@ -1330,16 +1385,22 @@ function zonesFor(date){
   let offset = 0;
   if(n){ const mid = rs.mean + hrr*0.50; offset = obs.reduce((a,o)=>a+(o.bpm-mid),0)/n * n/(n+ZONE_CALIB_K); }
   const tier = hm.measured ? 'M' : (n>=3 ? 'C' : 'E');
-  const shrink = hm.measured ? 1 : ZONE_CALIB_K/(ZONE_CALIB_K+n);
-  const errAt = (pct, k)=> Math.max(ZONE_ERR_FLOOR, Math.round((pct*hm.sd + (1-pct)*sdR) * ZONE_CALIB_K/(ZONE_CALIB_K+k)));
+  const bands = zoneBandsCore(hm, rs.mean, sdR, offset, n, hm.measured);
+  return { ok:true, tier, hrmax:hm, rhr:rs, hrr, offset, nObs:n, bands,
+           errMod: bands[2].err, nextErr: hm.measured ? ZONE_ERR_FLOOR : zoneErrAt(hm, sdR, 0.60, n+ZONE_CALIB_K), weak: rs.n<3 };
+}
+function zoneErrAt(hm, sdR, pct, k){ return Math.max(ZONE_ERR_FLOOR, Math.round((pct*hm.sd + (1-pct)*sdR) * ZONE_CALIB_K/(ZONE_CALIB_K+k))); }
+// The band maths on its own, so onboarding can preview from two raw inputs and
+// Performance shows the identical numbers once the reading is stored.
+function zoneBandsCore(hm, rhrMean, sdR, offset, n, measured){
+  const hrr = hm.bpm - rhrMean;
   const bands = ACSM_BANDS.map(b=>Object.assign({}, b, {
-    loBpm: Math.round(rs.mean + hrr*b.lo + offset),
-    hiBpm: Math.round(rs.mean + hrr*b.hi + offset),
-    err: hm.measured ? ZONE_ERR_FLOOR : errAt(b.hi, n) }));
+    loBpm: Math.round(rhrMean + hrr*b.lo + offset),
+    hiBpm: Math.round(rhrMean + hrr*b.hi + offset),
+    err: measured ? ZONE_ERR_FLOOR : zoneErrAt(hm, sdR, b.hi, n) }));
   // Bands abut, they do not overlap: 40–59 / 60–89, not 40–60 / 60–90.
   for(let i=0;i<bands.length-1;i++) bands[i].hiBpm = bands[i+1].loBpm - 1;
-  return { ok:true, tier, hrmax:hm, rhr:rs, hrr, offset, nObs:n, bands,
-           errMod: bands[2].err, nextErr: hm.measured ? ZONE_ERR_FLOOR : errAt(0.60, n+ZONE_CALIB_K), weak: rs.n<3 };
+  return bands;
 }
 // Heart Rate Ratio Method — Uth, Sørensen, Overgaard & Pedersen 2004 (Eur J Appl
 // Physiol 91:111–5), constant as corrected by the erratum (93:508–9): 15.0.
@@ -2653,6 +2714,10 @@ document.addEventListener('click', e=>{
   if(wt){ document.querySelectorAll('.wt-chip').forEach(x=>x.classList.remove('on')); wt.classList.add('on'); return; }
   const rp = e.target.closest('.rpe-chip');
   if(rp){ const was=rp.classList.contains('on'); document.querySelectorAll('.rpe-chip').forEach(x=>x.classList.remove('on')); if(!was) rp.classList.add('on'); return; }
+  const opr = e.target.closest('[data-obpreset]');
+  if(opr && ob){ obApplyPreset(opr.dataset.obpreset, opr.dataset.obday); return; }
+  const ogo = e.target.closest('[data-obgo]');
+  if(ogo && ob){ e.preventDefault(); obGo(+ogo.dataset.obgo); return; }
   const dc = e.target.closest('.dev-chip');
   if(dc){ const id=dc.dataset.chip; if(activeChips.has(id)){activeChips.delete(id);dc.classList.remove('on');} else {activeChips.add(id);dc.classList.add('on');} return; }
   const del = e.target.closest('[data-delfood]');
@@ -2673,7 +2738,13 @@ document.addEventListener('click', e=>{
   const t = e.target.closest('button, label'); if(!t) return;
   switch(t.id){
     case 'obDone': completeOnboarding(); break;
-    case 'obSkip': onboardingOpen=false; S.onboarded=true; localStorage.setItem('hebe_onboarded','1'); S.page='setup'; hideModal(); render(); break;
+    case 'obSkip': onboardingOpen=false; S.onboarded=true; localStorage.setItem('hebe_onboarded','1'); ob=null; S.page='setup'; hideModal(); render(); break;
+    case 'obStart': if(ob){ ob.step=1; obRender(); } break;
+    case 'obNext': if(ob) obNext(); break;
+    case 'obBack': if(ob) obGo(ob.step-1); break;
+    case 'obRhrGo': if(ob){ obReadForm(); ob.rhrShown=true; if(ob.rhr && (ob.rhr<30||ob.rhr>120)) ob.rhr=null; obRender(); } break;
+    case 'obParse': if(ob){ obReadForm(); ob.wdParse = parseDayText(ob.wdText); ob.wd = ob.wdParse.fields; ob.trainDays=null; obRender(); } break;
+    case 'obParseWe': if(ob){ obReadForm(); ob.weParse = parseWeekendText(ob.weText, ob.wd||OB_DEFAULT); ob.we = ob.weParse.fields; obRender(); } break;
     case 'loadSample': loadSampleWeek(); break;
     case 'reonboard': resetAndReonboard(); break;
     case 'themeToggle': S.settings.theme = S.settings.theme==='dark'?'light':'dark'; persist(); applyTheme(); render(); break;
@@ -2766,6 +2837,318 @@ function doWipe(){
 
 // ---------- guest onboarding + sample data ----------
 let onboardingOpen=false;
+// ---------- first-user journey (onboarding) ----------
+// Five screens, under three minutes, ending on Home's real check-in.
+//   0 promise + four truths · 1 the minimum · 2 resting HR → zones + the
+//   calibration promise · 3 describe a weekday and a weekend (parsed locally,
+//   shown back for correction) · 4 what HEBE knows + the locked layers.
+// No API key needed anywhere in this flow. Strings go through t() so a French
+// dictionary is an additive drop later.
+let ob = null;
+function obReset(){
+  ob = { step:0, name:'', dob:'', sex:'na', rhr:null, rhrShown:false, wdText:'', weText:'',
+         wdParse:null, weParse:null, wd:null, we:null, trainDays:null, sample:false };
+}
+const OB_DEFAULT = Object.assign({}, GUEST_TEMPLATE.weekday);
+const OB_PRESETS = {
+  desk:     { key:'desk',     wd:{ sleepH:7,   sitH:9, workoutDone:false, workoutMin:0,  rideH:0,   sunMin:10, protein:80,  stress:5, fastingH:12 } },
+  moderate: { key:'moderate', wd:{ sleepH:7.5, sitH:7, workoutDone:true,  workoutMin:40, rideH:0.5, sunMin:20, protein:100, stress:4, fastingH:12 } },
+  active:   { key:'active',   wd:{ sleepH:7.5, sitH:5, workoutDone:true,  workoutMin:60, rideH:1,   sunMin:30, protein:120, stress:3, fastingH:13 } }
+};
+function obAge(dob){ const d = new Date((dob||'')+'T12:00:00'); return isNaN(d) ? null : (Date.now()-d)/(365.2425*864e5); }
+// "6", "6:30", "6am", "11pm", "23:00". pm=true biases a bare 1–11 to the evening (bed times).
+function obParseTime(str, pm){
+  let m = String(str||'').match(/^\s*(\d{1,2})(\d{2})\s*(am|pm|a\.m\.|p\.m\.)?\s*$/i);          // "630", "1130pm"
+  if(!m) m = String(str||'').match(/(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)?/i);
+  if(!m) return null;
+  let h=+m[1], mi=m[2]?+m[2]:0; const ap=(m[3]||'').replace(/\./g,'').toLowerCase();
+  if(h>24||mi>59) return null;
+  if(ap==='pm'&&h<12) h+=12; else if(ap==='am'&&h===12) h=0;
+  else if(!ap && pm && h>=1 && h<=11) h+=12;
+  return h+mi/60;
+}
+// Duration in hours from "45 min", "1.5h", "an hour", "half an hour"; null if none.
+function obDur(s){
+  s = String(s||'').toLowerCase();
+  if(/half\s+an?\s+hour/.test(s)) return 0.5;
+  if(/\ban?\s+hour\b/.test(s)) return 1;
+  let m = s.match(/(\d+(?:\.\d+)?)\s*(?:h\b|hr\b|hrs\b|hour|hours)/); if(m) return +m[1];
+  m = s.match(/(\d+)\s*(?:m\b|min\b|mins\b|minutes?)/); if(m) return +m[1]/60;
+  return null;
+}
+// Deterministic parser: free text → the existing template fields. Every field
+// it sets is recorded in `heard` with the reason; everything else stays an
+// assumption and is shown as one. No model, nothing hidden.
+function parseDayText(txt, base){
+  const f = Object.assign({}, OB_DEFAULT, base||{}); const heard = {}; const notes = {};
+  const raw = String(txt||'').toLowerCase().replace(/[’']/g,"'").replace(/\s+/g,' ').trim();
+  if(!raw) return { fields:f, heard:[], heardWhy:{}, notes, empty:true, low:true };
+  const T = '(\\d{3,4}\\s*(?:am|pm)?\\b|\\d{1,2}(?:[:.]\\d{2})?\\s*(?:am|pm|a\\.m\\.|p\\.m\\.)?)';
+  const clauses = raw.split(/[,.;!?\n]|\band\b|\bthen\b|\bafter that\b/).map(c=>c.trim()).filter(Boolean);
+  let wake=null, bed=null, first=null, last=null;
+  const NEG = /\b(no|not|never|don't|dont|skip|skipped|without)\b/;
+  clauses.forEach(c=>{
+    let m; const dur = obDur(c);
+    if((m=c.match(new RegExp('(?:\\bup\\b|wake|woke|awake|rise|alarm)\\D{0,10}?'+T)))) wake = obParseTime(m[1], false);
+    // a bed time, but not "sleep about 6h" (a duration, handled below)
+    if((m=c.match(new RegExp('(?:\\bbed\\b|asleep|lights out|sleep)\\s*(?:by|at|around|about|~)?\\s*'+T))) && !(dur!=null && /sleep/.test(c) && !/\bbed\b|asleep|lights out/.test(c))) bed = obParseTime(m[1], true);
+    if(/\b(sleep|slept|sleeping)\b/.test(c) && dur!=null && dur>=3 && dur<=12 && !/\bbed\b|asleep/.test(c)){ f.sleepH = dur; heard.sleepH = 'said'; }
+    if(/\b(ride|rides|riding|bike|biking|cycle|cycling|run|running|jog|jogging|swim|swimming|row|rowing|cardio|commute|walk|walking|hike|hiking)\b/.test(c) && !NEG.test(c)){
+      const h = dur!=null ? dur : 0.5;
+      f.rideH = Math.round(((heard.rideH ? f.rideH : 0) + h)*100)/100;
+      heard.rideH = dur!=null ? 'said' : 'assumed30';
+    }
+    if(/\b(gym|workout|work out|lift|lifting|weights|strength|crossfit|yoga|pilates|spin class|class|training|train)\b/.test(c) && !NEG.test(c) && !/rest day/.test(c)){
+      f.workoutDone = true; f.workoutMin = dur!=null ? Math.round(dur*60) : 45; heard.workoutMin = dur!=null ? 'said' : 'assumed45';
+    }
+    if(/rest day|no gym|don't train|dont train|no workout|no exercise|don't exercise|never exercise|not (?:very )?active|no time (?:for|to) (?:exercise|gym|train|work ?out)|sedentary/.test(c)){ f.workoutDone=false; f.workoutMin=0; f.rideH=0; heard.workoutMin='said'; }
+    if(/\b(desk|sit|sitting|sat|office|computer|screen|meetings|driving|drive|laptop|wfh|work from home|studying|study|lectures)\b/.test(c)){
+      // a duration only counts for sitting when it is hours-scale and not already an activity's ("ride 40 min ... sit all day")
+      const sitDur = (dur!=null && dur>=2 && !/\b(ride|bike|cycle|run|jog|walk|swim|gym|workout|train|lift|class)\w*/.test(c)) ? dur : null;
+      f.sitH = sitDur!=null ? Math.min(14, sitDur) : (/all day|whole day|9\s*(?:to|-|–)\s*5|full day|most of the day/.test(c) ? 9 : 8);
+      heard.sitH = sitDur!=null ? 'said' : 'assumed8';
+    }
+    if(/on my feet|standing|nurse|nursing|construction|warehouse|retail|teacher|teaching|barista|server|waiter|waitress|chef|kitchen|site work|labou?rer/.test(c)){ f.sitH = 3; heard.sitH = 'said'; }
+    if((m=c.match(new RegExp('(?:breakfast|first meal|first eat|eat at|eating at)\\D{0,10}?'+T)))) first = obParseTime(m[1], false);
+    if((m=c.match(new RegExp('(?:dinner|supper|last meal|big meal|main meal|evening meal)\\D{0,10}?'+T)))) last = obParseTime(m[1], true);
+    if(/skip breakfast|no breakfast|don't eat (?:until|till)|intermittent|16[:/ ]?8|fasting/.test(c)){ f.fastingH = 16; heard.fastingH = 'said'; }
+    if(/one meal a day|omad/.test(c)){ f.fastingH = 22; heard.fastingH = 'said'; }
+    if(/stress|hectic|deadline|burn(?:ed|t)? ?out|anxious|overwhelm|exhaust/.test(c) && !/no stress|not stress|low stress/.test(c)){ f.stress = 7; f.mood = 5; heard.stress = 'said'; }
+    if(/\b(chill|relaxed|calm|easy day|quiet day|low stress)\b/.test(c)){ f.stress = 2; heard.stress = 'said'; }
+    if(/\b(outside|outdoors|sun\b|sunlight|garden|gardening|the dog)\b/.test(c)){ f.sunMin = dur!=null ? Math.round(dur*60) : 30; heard.sunMin = dur!=null ? 'said' : 'assumed30'; }
+    if(/vitamin|supplement|creatine|omega|magnesium|fish oil/.test(c)){ f.supplements = true; heard.supplements = 'said'; }
+    if((m=c.match(/(\d+(?:\.\d+)?)\s*(?:l\b|litres?|liters?)/)) && /water|drink/.test(c)){ f.water = +m[1]; heard.water = 'said'; }
+    if((m=c.match(/(\d+)\s*g\b/)) && /protein/.test(c)){ f.protein = +m[1]; heard.protein = 'said'; }
+  });
+  if(wake!=null) notes.wake = wake; if(bed!=null) notes.bed = bed;
+  if(!heard.sleepH && wake!=null && bed!=null){ const s = (wake-bed+24)%24; if(s>=3 && s<=12){ f.sleepH = Math.round(s*4)/4; heard.sleepH = 'times'; } }
+  if(!heard.fastingH && first!=null && last!=null){ const span = (last-first+24)%24; if(span>=2 && span<=18){ f.fastingH = Math.round((24-span)*2)/2; heard.fastingH = 'meals'; } }
+  if(first!=null) notes.first = first; if(last!=null) notes.last = last;
+  const trainH = (+f.rideH||0) + (+f.workoutMin||0)/60;
+  f.act = trainH>=1.5 ? 'very' : trainH>=0.75 ? 'active' : trainH>0 ? 'light' : 'sed';
+  const keys = Object.keys(heard);
+  return { fields:f, heard:keys, heardWhy:heard, notes, empty:false, low: keys.length<=2 };
+}
+// Weekend: starts from the weekday with a weekend prior (less sitting, no commute,
+// no session unless said). "same" copies the weekday outright.
+function parseWeekendText(txt, wd){
+  wd = wd || OB_DEFAULT;
+  const raw = String(txt||'').toLowerCase();
+  const same = /\b(same|similar|no different|like a weekday|identical)\b/.test(raw);
+  const prior = same ? Object.assign({}, wd) : Object.assign({}, wd, { sitH: Math.max(2, Math.min(5, wd.sitH-3)), rideH:0, workoutDone:false, workoutMin:0, sunMin: Math.max(wd.sunMin||0, 25), stress: Math.min(wd.stress||4, 3) });
+  const r = parseDayText(raw, prior);
+  if(/sleep in|lie in|sleep late|sleep longer|sleep more/.test(raw) && !r.heardWhy.sleepH){ r.fields.sleepH = Math.min(9.5, (wd.sleepH||7.5)+1); r.heard.push('sleepH'); r.heardWhy.sleepH = 'said'; }
+  if(/no work|day off|days off|off work|not working|weekend off|don't work/.test(raw) && !r.heardWhy.sitH){ r.fields.sitH = 3; r.heard.push('sitH'); r.heardWhy.sitH = 'said'; }
+  if(/\b(work|shift|shifts)\b/.test(raw) && !/no work|off work|don't work|not working/.test(raw) && !r.heardWhy.sitH){ r.fields.sitH = wd.sitH; r.heard.push('sitH'); r.heardWhy.sitH = 'said'; }
+  r.same = same;
+  r.low = r.empty || (r.heard.length<=1 && !same);
+  return r;
+}
+function obPresetParse(key, day, wd){
+  const p = OB_PRESETS[key]; if(!p) return null;
+  const f = Object.assign({}, OB_DEFAULT, p.wd);
+  if(day==='we') Object.assign(f, { sitH: Math.max(2, f.sitH-3), rideH:0, sunMin: Math.max(f.sunMin, 25), stress: Math.min(f.stress, 3) });
+  const trainH = (+f.rideH||0) + (+f.workoutMin||0)/60;
+  f.act = trainH>=1.5 ? 'very' : trainH>=0.75 ? 'active' : trainH>0 ? 'light' : 'sed';
+  return { fields:f, heard:[], heardWhy:{}, notes:{}, empty:false, low:false, preset:key };
+}
+// Zones straight from the two onboarding inputs — identical maths to zonesFor,
+// which is what Performance will show once the reading is stored (n=1, widened).
+function zonesFromInputs(dob, rhr){
+  const a = obAge(dob); if(!(a>0) || !(rhr>0)) return null;
+  const hm = { bpm: 208 - 0.7*a, sd:10, measured:false };
+  const bands = zoneBandsCore(hm, rhr, 5, 0, 0, false);
+  return { hrmax:hm, bands, errMod: bands[2].err };
+}
+function obZonesHTML(z){
+  if(!z) return '';
+  let h = '<div class="card" style="margin-top:12px;padding:12px 14px"><div class="est-head"><h3>'+t('ob_zonesH')+'</h3>'+tierBadge('E')+'</div>';
+  z.bands.forEach(b=>{ h += '<div class="list-item zone-row" style="padding:5px 0"><span><b>'+b.name+'</b>'+(b.key==='mod'?' <span class="sub2">· '+t('ob_zone2')+'</span>':'')+'<div class="sub" style="font-size:11px">'+b.talk+'</div></span><b class="zone-range">'+b.loBpm+'–'+b.hiBpm+' bpm <span class="sub2">±'+b.err+'</span></b></div>'; });
+  h += '<div class="sub mt" style="font-size:11.5px">'+t('ob_zonesNote', z.errMod)+'</div></div>';
+  return h;
+}
+// id attributes are written out literally so the element ids stay greppable.
+const OB_ROWS_WD = [ ['sleepH','ob_rSleep','h','id="obSleep"',0.25], ['sitH','ob_rSit','h','id="obSit"',0.5], ['workoutMin','ob_rWork','min','id="obWorkMin"',5], ['rideMin','ob_rRide','min','id="obRide"',5], ['fastingH','ob_rFast','h','id="obFast"',0.5], ['protein','ob_rProt','g','id="obProt"',5] ];
+const OB_ROWS_WE = [ ['sleepH','ob_rSleep','h','id="obWeSleep"',0.25], ['sitH','ob_rSit','h','id="obWeSit"',0.5], ['workoutMin','ob_rWork','min','id="obWeWork"',5], ['rideMin','ob_rRide','min','id="obWeRide"',5], ['fastingH','ob_rFast','h','id="obWeFast"',0.5] ];
+const obIdOf = attr => attr.match(/id="([^"]+)"/)[1];
+function obRowVal(f, k){ return k==='rideMin' ? Math.round((+f.rideH||0)*60) : (k==='workoutMin' ? (f.workoutDone ? +f.workoutMin||0 : 0) : f[k]); }
+function obShowbackHTML(day, r){
+  const rows = day==='wd' ? OB_ROWS_WD : OB_ROWS_WE;
+  const f = r.fields, low = r.low && !r.preset, def = day==='wd' ? OB_DEFAULT : r.fields;
+  let h = '<div class="ob-group">';
+  if(r.preset) h += '<div class="sub" style="margin-bottom:6px">'+t('ob_presetFrom', t('ob_p_'+r.preset))+'</div>';
+  else if(low) h += '<div class="sub" style="margin-bottom:6px">'+(r.heard.length ? t('ob_low', r.heard.map(k=>t('ob_f_'+k)).join(', ')) : t('ob_lowNone'))+'</div>';
+  else h += '<div class="sub" style="margin-bottom:6px"><b>'+t('ob_heard')+'</b>'+(r.notes.wake!=null||r.notes.bed!=null ? ' <span class="sub2">'+(r.notes.wake!=null?t('ob_wakeAt', obFmtTime(r.notes.wake)):'')+(r.notes.bed!=null?' · '+t('ob_bedAt', obFmtTime(r.notes.bed)):'')+'</span>':'')+' <span class="sub2">'+t('ob_fix')+'</span></div>';
+  rows.forEach(([k,lab,unit,id,step])=>{
+    const hk = k==='rideMin' ? 'rideH' : k;
+    const was = r.preset ? 'preset' : (r.heardWhy[hk] ? 'heard' : 'assumed');
+    const v = obRowVal(f, k), dv = obRowVal(def, k);
+    const blank = low && was!=='heard';
+    const why = r.heardWhy[hk];
+    const tag = was==='heard' ? (why==='times' ? t('ob_tagTimes') : why==='meals' ? t('ob_tagMeals') : why==='edited' ? t('ob_tagEdited') : /^assumed/.test(why||'') ? t('ob_tagHeardDur') : t('ob_tagHeard')) : was==='preset' ? t('ob_tagPreset') : t('ob_tagAssumed');
+    h += '<div class="ob-row"><span>'+t(lab)+'<div class="tag '+(was==='heard'?'heard':'')+'">'+tag+'</div></span>'
+       + '<span style="display:flex;align-items:center;gap:5px"><input type="number" '+id+' step="'+step+'" min="0" value="'+(blank?'':v)+'" placeholder="'+dv+'"><span class="sub2">'+unit+'</span></span></div>';
+  });
+  if(day==='wd'){
+    const act = f.act||'sed';
+    h += '<div class="ob-row"><span>'+t('ob_rAct')+'<div class="tag">'+t('ob_tagDerived')+'</div></span><select id="obAct" style="width:150px;text-align:left">'+['sed','light','active','very'].map(a=>'<option value="'+a+'"'+(a===act?' selected':'')+'>'+activityLabel(a)+'</option>').join('')+'</select></div>';
+    const td = ob.trainDays!=null ? ob.trainDays : (f.workoutDone ? 4 : 0);
+    h += '<div class="ob-row"><span>'+t('ob_rTrain')+'<div class="tag">'+t('ob_tagDerived')+'</div></span><span style="display:flex;align-items:center;gap:5px"><input type="number" id="obTrain" min="0" max="7" step="1" value="'+td+'"><span class="sub2">/wk</span></span></div>';
+  }
+  h += '</div>';
+  return h;
+}
+function obFmtTime(h){ const hh = Math.floor(h), mm = Math.round((h-hh)*60); return pad(hh)+':'+pad(mm); }
+function obReadShowback(day){
+  const rows = day==='wd' ? OB_ROWS_WD : OB_ROWS_WE;
+  const r = day==='wd' ? ob.wdParse : ob.weParse; if(!r) return null;
+  const f = Object.assign({}, r.fields);
+  rows.forEach(([k,,,id])=>{ const el = document.getElementById(obIdOf(id)); if(!el) return;
+    const v = el.value===''? null : +el.value; if(v==null || !isFinite(v)) return;   // blank keeps the default
+    const hk = k==='rideMin' ? 'rideH' : k;
+    if(!r.heardWhy[hk] && v!==obRowVal(r.fields, k)) r.heardWhy[hk] = 'edited';    // a typed value is now yours, not assumed
+    if(k==='rideMin') f.rideH = Math.round(v/60*100)/100;
+    else if(k==='workoutMin'){ f.workoutMin = Math.round(v); f.workoutDone = v>0; }
+    else f[k] = v; });
+  if(day==='wd'){ const a = document.getElementById('obAct'); if(a) f.act = a.value; const tdEl = document.getElementById('obTrain'); if(tdEl && tdEl.value!=='') ob.trainDays = Math.max(0, Math.min(7, Math.round(+tdEl.value))); }
+  r.fields = f;   // keep the correction through any re-render (weekend parse, Back, edit links)
+  return f;
+}
+function obDaySummary(f){
+  const parts = [ t('ob_sumSleep', f.sleepH), t('ob_sumSit', f.sitH) ];
+  if(f.workoutDone && f.workoutMin>0) parts.push(t('ob_sumGym', f.workoutMin));
+  if(f.rideH>0) parts.push(t('ob_sumRide', Math.round(f.rideH*60)));
+  parts.push(t('ob_sumFast', f.fastingH));
+  return parts.join(' · ');
+}
+function obTemplatesFromState(wd, we, trainDays){
+  const mk = (f)=>{ const o = {}; METRIC_FIELDS.forEach(k=>{ o[k] = (f[k]!==undefined ? f[k] : OB_DEFAULT[k]); }); o.workoutDone = !!(o.workoutMin>0); return o; };
+  const W = mk(wd), E = mk(we);
+  if(trainDays>=6 && !E.workoutDone){ E.workoutDone = true; E.workoutMin = W.workoutMin||40; }
+  if(trainDays>0 && !W.workoutDone && !E.workoutDone){ E.workoutDone = true; E.workoutMin = 40; }
+  return { weekday:W, weekend:E };
+}
+function obDotsHTML(){ return '<div class="ob-dots">'+[0,1,2,3,4].map(i=>'<span class="'+(i<=ob.step?'on':'')+'"></span>').join('')+'</div>'; }
+function obNavHTML(nextId, nextLabel){
+  const nextBtn = nextId==='obDone' ? '<button class="btn primary" id="obDone">' : '<button class="btn primary" id="obNext">';
+  return '<div class="ob-nav">'+(ob.step>0?'<button class="btn" id="obBack">'+t('ob_back')+'</button>':'<span></span>')+nextBtn+(nextLabel||t('ob_next'))+'</button></div>';
+}
+function obStepHTML(){
+  const s = ob.step;
+  if(s===0){
+    return '<div>'+obDotsHTML()+'<h2 style="margin-top:0;font-size:18px;line-height:1.3">'+t('ob_hook')+'</h2>'
+      + '<p class="sub" style="line-height:1.55;font-size:13px">'+t('ob_intro')+'</p>'
+      + '<div style="font-weight:700;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--text2);margin-top:14px">'+t('ob_before')+'</div>'
+      + [1,2,3,4].map(i=>'<div class="ob-truth"><span style="color:var(--teal-dk);font-weight:800">'+i+'</span><span><b>'+t('ob_t'+i+'h')+'</b>'+t('ob_t'+i)+'</span></div>').join('')
+      + '<button class="btn primary mt" id="obStart" style="width:100%;font-size:14px">'+t('ob_start')+'</button>'
+      + '<div class="sub" style="font-size:11px;margin-top:8px;text-align:center">'+t('ob_noAccount')+'</div>'
+      + '<button id="obSkip" class="mt" style="width:100%;background:none;border:none;color:var(--text3);font-size:12px;cursor:pointer;text-decoration:underline">'+t('ob_skip')+'</button></div>';
+  }
+  if(s===1){
+    return '<div>'+obDotsHTML()+'<h2 style="margin-top:0">'+t('ob_s1h')+'</h2><div class="sub">'+t('ob_s1sub')+'</div>'
+      + '<div class="frow mt"><div><label class="f">'+t('ob_name')+'</label><input id="obName" placeholder="Alex" value="'+esc(ob.name)+'" autocomplete="given-name"></div>'
+      + '<div><label class="f">'+t('ob_dob')+'</label><input type="date" id="obDob" value="'+esc(ob.dob)+'"></div></div>'
+      + '<div class="mt"><label class="f">'+t('ob_sex')+'</label><select id="obSex"><option value="na"'+(ob.sex==='na'?' selected':'')+'>'+t('ob_sexNa')+'</option><option value="female"'+(ob.sex==='female'?' selected':'')+'>'+t('ob_sexF')+'</option><option value="male"'+(ob.sex==='male'?' selected':'')+'>'+t('ob_sexM')+'</option></select>'
+      + '<div class="sub" style="font-size:11px;margin-top:4px">'+t('ob_sexWhy')+'</div></div>'
+      + obNavHTML() + '</div>';
+  }
+  if(s===2){
+    const z = ob.rhrShown && ob.rhr ? zonesFromInputs(ob.dob, ob.rhr) : null;
+    return '<div>'+obDotsHTML()+'<h2 style="margin-top:0">'+t('ob_s2h')+'</h2>'
+      + '<div class="sub" style="line-height:1.55">'+t('ob_s2how')+'</div>'
+      + '<div class="frow mt"><div><label class="f">'+t('ob_s2label')+'</label><input type="number" id="obRhr" min="30" max="120" placeholder="'+t('ob_s2ph')+'" value="'+(ob.rhr||'')+'"></div>'
+      + '<button class="btn primary" id="obRhrGo">'+t('ob_s2go')+'</button></div>'
+      + (ob.rhrShown && !z ? '<div class="sub mt" style="color:var(--amber)">'+t('ob_s2bad')+'</div>' : '')
+      + obZonesHTML(z)
+      + '<div class="card" style="margin-top:12px;padding:12px 14px;background:var(--card2)"><b style="font-size:13px">'+t('ob_promiseH')+'</b><div class="sub" style="margin-top:3px;line-height:1.5">'+t('ob_promise')+'</div></div>'
+      + obNavHTML('obNext', z ? t('ob_next') : t('ob_s2skip')) + '</div>';
+  }
+  if(s===3){
+    const chips = (day)=>'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">'+Object.keys(OB_PRESETS).map(k=>'<span class="chip" data-obpreset="'+k+'" data-obday="'+day+'">'+t('ob_p_'+k)+'</span>').join('')+'</div>';
+    let h = '<div>'+obDotsHTML()+'<h2 style="margin-top:0">'+t('ob_s3h')+'</h2><div class="sub" style="line-height:1.5">'+t('ob_s3sub')+'</div>'
+      + '<textarea class="ob mt" id="obDayText" placeholder="'+esc(t('ob_s3ph'))+'">'+esc(ob.wdText)+'</textarea>'
+      + '<div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap"><button class="btn primary" id="obParse">'+t('ob_read')+'</button><span class="sub2">'+t('ob_or')+'</span></div>'
+      + chips('wd');
+    if(ob.wdParse){
+      h += obShowbackHTML('wd', ob.wdParse);
+      h += '<div class="mt" style="border-top:1px solid var(--line);padding-top:12px"><b style="font-size:13.5px">'+t('ob_weH')+'</b><div class="sub">'+t('ob_weSub')+'</div>'
+        + '<textarea class="ob" style="margin-top:8px;min-height:54px" id="obWeText" placeholder="'+esc(t('ob_wePh'))+'">'+esc(ob.weText)+'</textarea>'
+        + '<div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap"><button class="btn" id="obParseWe">'+t('ob_weRead')+'</button><span class="sub2">'+t('ob_or')+'</span></div>' + chips('we');
+      if(ob.weParse) h += obShowbackHTML('we', ob.weParse);
+      else h += '<div class="sub" style="font-size:11px;margin-top:8px">'+t('ob_weAssumed')+'</div>';
+      h += '</div>';
+    }
+    h += obNavHTML('obNext', ob.wdParse ? t('ob_next') : t('ob_s3skip')) + '</div>';
+    return h;
+  }
+  // s===4 — what HEBE knows + the locked layers
+  const wd = ob.wd || OB_DEFAULT, we = ob.we || parseWeekendText('', wd).fields;
+  const z = ob.rhr ? zonesFromInputs(ob.dob, ob.rhr) : null;
+  const age = obAge(ob.dob);
+  const row = (k, v, go)=>'<div class="ob-row" style="padding:5px 0"><span class="sub" style="flex-shrink:0">'+k+'</span><span style="text-align:right;font-size:12.5px">'+v+(go!=null?' <a href="#" data-obgo="'+go+'" class="sub2" style="text-decoration:underline">'+t('ob_edit')+'</a>':'')+'</span></div>';
+  let h = '<div>'+obDotsHTML()+'<h2 style="margin-top:0">'+t('ob_s4h')+'</h2><div class="sub" style="line-height:1.5">'+t('ob_s4sub')+'</div>';
+  h += '<div class="ob-group"><div class="k">'+t('ob_stated')+'</div>'
+    + row(t('ob_kYou'), esc(ob.name)+' · '+(age?Math.floor(age):'?')+' · '+t('ob_sex'+(ob.sex==='male'?'M':ob.sex==='female'?'F':'Na')).toLowerCase(), 1)
+    + row(t('ob_kWeekday'), obDaySummary(wd), 3)
+    + row(t('ob_kWeekend'), obDaySummary(we), 3)
+    + row(t('ob_kRhr'), ob.rhr ? ob.rhr+' bpm · '+t('ob_oneReading') : t('ob_notYet'), 2)
+    + '</div>';
+  h += '<div class="ob-group"><div class="k">'+t('ob_derived')+'</div>'
+    + row(t('ob_kZones'), z ? '<b>'+z.bands[2].name+'</b> '+z.bands[2].loBpm+'–'+z.bands[2].hiBpm+' bpm ±'+z.bands[2].err+' · '+tierBadge('E') : t('ob_zonesAfterRhr'))
+    + row(t('ob_kProtein'), '~'+Math.round(wd.protein)+' g/day · '+tierBadge('E', t('ob_tagAssumedShort')))
+    + row(t('ob_kAge'), t('ob_baselineForming'))
+    + '</div>';
+  h += '<div class="ob-group"><div class="k">'+t('ob_unknown')+'</div><div class="sub" style="line-height:1.5">'+t('ob_unknownList')+'<br><span class="sub2">'+t('ob_unknownNote')+'</span></div></div>';
+  h += '<div class="ob-group"><div class="k">'+t('ob_lockH')+'</div>'
+    + '<div class="ob-lock"><span>✅</span><span><b>'+t('ob_lockHabits')+'</b> — '+t('ob_lockHabitsD')+'</span></div>'
+    + '<div class="ob-lock"><span>🔒</span><span><b>'+t('ob_lockCardio')+'</b> — '+t('ob_lockCardioD')+'</span></div>'
+    + '<div class="ob-lock"><span>🔒</span><span><b>'+t('ob_lockBody')+'</b> — '+t('ob_lockBodyD')+'</span></div>'
+    + '<div class="ob-lock"><span>🔒</span><span><b>'+t('ob_lockBlood')+'</b> — '+t('ob_lockBloodD')+'</span></div>'
+    + '<div class="sub" style="margin-top:4px;font-style:italic">'+t('ob_lockNote')+'</div></div>';
+  h += '<label class="mt" style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2);cursor:pointer"><input type="checkbox" id="obSample"'+(ob.sample?' checked':'')+' style="width:auto"> '+t('ob_sample')+'</label>';
+  h += obNavHTML('obDone', t('ob_done')) + '</div>';
+  return h;
+}
+function obRender(){
+  showModal(obStepHTML());
+  document.getElementById('modalBox').scrollTop = 0;
+  if(ob.step===1) setTimeout(()=>{ const el=document.getElementById('obName'); if(el && !el.value) el.focus(); }, 30);
+}
+// Read the current screen's inputs into state before moving; returns false to stay.
+function obReadForm(){
+  const s = ob.step, g = id => document.getElementById(id);
+  if(s===1){
+    ob.name = (g('obName').value||'').trim(); ob.dob = g('obDob').value; ob.sex = g('obSex').value;
+    return true;
+  }
+  if(s===2){ const v = +(g('obRhr')||{}).value; ob.rhr = v>0 ? v : null; return true; }
+  if(s===3){
+    ob.wdText = (g('obDayText')||{}).value||''; ob.weText = (g('obWeText')||{}).value||ob.weText;
+    if(ob.wdParse) ob.wd = obReadShowback('wd');
+    if(ob.weParse) ob.we = obReadShowback('we');
+    return true;
+  }
+  if(s===4){ ob.sample = !!(g('obSample')||{}).checked; return true; }
+  return true;
+}
+function obValidate(){
+  if(ob.step===1){
+    if(!ob.name){ toast(t('ob_needName')); return false; }
+    const a = obAge(ob.dob);
+    if(!ob.dob || a==null){ toast(t('ob_needDob')); return false; }
+    if(a<13 || a>110){ toast(t('ob_badDob')); return false; }
+  }
+  if(ob.step===2 && ob.rhr!=null && (ob.rhr<30 || ob.rhr>120)){ toast(t('ob_s2bad')); return false; }
+  return true;
+}
+function obGo(step){ obReadForm(); ob.step = Math.max(0, Math.min(4, step)); obRender(); }
+function obNext(){ obReadForm(); if(!obValidate()) return; if(ob.step===3 && !ob.wd){ ob.wd = null; } ob.step++; obRender(); }
+function obApplyPreset(key, day){
+  obReadForm();
+  if(day==='we'){ ob.weParse = obPresetParse(key, 'we'); ob.we = ob.weParse.fields; }
+  else { ob.wdParse = obPresetParse(key, 'wd'); ob.wd = ob.wdParse.fields; ob.trainDays = null; }
+  obRender();
+}
 function activityLabel(a){ return {sed:'mostly sedentary', light:'lightly active', active:'active', very:'very active'}[a]||'active'; }
 function buildGuestTemplates(p){
   const t = JSON.parse(JSON.stringify(GUEST_TEMPLATE));
@@ -2782,43 +3165,34 @@ function guestCoachBio(p){
   return p.name+', '+age+(p.sex&&p.sex!=='na'?' ('+p.sex+')':'')+', '+activityLabel(p.activity)+' (~'+(p.trainDays||0)+' training days/week), typical sleep ~'+p.sleep+'h, ~'+p.sit+'h sitting/day, protein target ~'+p.protein+'g';
 }
 function showOnboarding(){
-  onboardingOpen=true;
-  const h = '<div>'
-    + '<h2 style="margin-top:0">Welcome to HEBE</h2>'
-    + '<p class="sub" style="line-height:1.55">HEBE estimates your <b>functional age</b> from how you live — then each day shows what helped or hurt it and the one thing to fix next. Grounded in published human-health studies. A personal experiment, <b>not medical advice</b> and not a diagnosis.</p>'
-    + '<div class="frow mt"><div><label class="f">First name</label><input id="obName" placeholder="Alex"></div><div><label class="f">Birth date</label><input type="date" id="obDob" value="1995-01-01"></div></div>'
-    + '<div class="frow mt"><div><label class="f">Biological sex (optional)</label><select id="obSex"><option value="na">Prefer not to say</option><option value="male">Male</option><option value="female">Female</option></select></div><div><label class="f">Activity level</label><select id="obAct"><option value="sed">Mostly sedentary</option><option value="light" selected>Lightly active</option><option value="active">Active</option><option value="very">Very active</option></select></div></div>'
-    + '<div class="frow mt"><div><label class="f">Training days / week</label><input type="number" id="obTrain" value="2" min="0" max="7"></div><div><label class="f">Typical sleep (h)</label><input type="number" id="obSleep" value="7.5" step="0.5"></div></div>'
-    + '<div class="frow mt"><div><label class="f">Sitting hours / day</label><input type="number" id="obSit" value="8"></div><div><label class="f">Protein target (g)</label><input type="number" id="obProt" value="90"></div></div>'
-    + '<label class="mt" style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="obSample" checked style="width:auto"> Load a sample week so I can explore it right away</label>'
-    + '<button class="btn primary mt" id="obDone" style="width:100%">Start HEBE</button>'
-    + '<button id="obSkip" class="mt" style="width:100%;background:none;border:none;color:var(--text3);font-size:12px;cursor:pointer;text-decoration:underline">I already use HEBE — take me to sign in / import</button>'
-    + '<div class="sub" style="font-size:11px;margin-top:8px">Your data stays in your browser. Add your own Claude API key later for the live AI coach, or use it without one.</div>'
-    + '</div>';
-  showModal(h);
+  onboardingOpen = true;
+  if(!ob) obReset();
+  obRender();
 }
 function completeOnboarding(){
-  const name=(document.getElementById('obName').value||'').trim();
-  const dob=document.getElementById('obDob').value;
-  if(!name){ toast('Add your name'); return; }
-  if(!dob){ toast('Add your birth date'); return; }
-  const p = { name, dob, sex:document.getElementById('obSex').value,
-    activity:document.getElementById('obAct').value,
-    trainDays:+document.getElementById('obTrain').value||0,
-    sleep:+document.getElementById('obSleep').value||7.5,
-    sit:+document.getElementById('obSit').value||8,
-    protein:+document.getElementById('obProt').value||90 };
-  S.settings.name=p.name; S.settings.dob=p.dob; S.settings.proteinTarget=p.protein;
-  S.settings.sex=p.sex;   // drives the nutrient targets - male and female DRIs differ
-  S.settings.coachBio=guestCoachBio(p);
-  S.templates=buildGuestTemplates(p);
-  S.protocols=[]; S.onboarded=true;
-  const wantSample = document.getElementById('obSample').checked;
+  if(!ob) obReset();
+  obReadForm();
+  if(!ob.name || !obAge(ob.dob)){ ob.step = 1; obRender(); toast(t('ob_needName')); return; }
+  const wd = ob.wd || obPresetParse('moderate','wd').fields;
+  const we = ob.we || parseWeekendText('', wd).fields;
+  const trainDays = ob.trainDays!=null ? ob.trainDays : (wd.workoutDone ? 4 : 0);
+  S.settings.name = ob.name; S.settings.dob = ob.dob; S.settings.sex = ob.sex;   // sex drives the nutrient targets; unknown takes the higher DRI
+  S.settings.proteinTarget = Math.round(wd.protein||90);
+  S.settings.coachBio = guestCoachBio({ name:ob.name, dob:ob.dob, sex:ob.sex, activity:wd.act||'active', trainDays, sleep:wd.sleepH, sit:wd.sitH, protein:Math.round(wd.protein||90) });
+  S.templates = obTemplatesFromState(wd, we, trainDays);
+  S.protocols = []; S.onboarded = true;
   if(S.days[S.date] && !S.days[S.date].confirmed) delete S.days[S.date];
-  ensureDay(S.date); persist();
-  onboardingOpen=false; hideModal();
+  const d = ensureDay(S.date);
+  // The first resting-HR reading lands on today's day through the side-feature
+  // path: it counts as reading 1 of 3, and day one is NOT marked as logged.
+  if(ob.rhr){ d.heart.rhr = ob.rhr; d.wearable.restingHR = ob.rhr; d.touchedAt = Date.now(); }
+  persist(); localStorage.setItem('hebe_onboarded','1');
+  onboardingOpen = false; hideModal();
+  const wantSample = ob.sample, name = ob.name;
+  ob = null;
+  S.page = 'home';
   if(wantSample) loadSampleWeek(); else render();
-  toast('Welcome, '+p.name+'!');
+  toast(t('ob_welcome', name));
 }
 function loadSampleWeek(){
   const n=16; const jit=(base,spread)=>Math.round((base+(Math.random()*2-1)*spread)*10)/10;
@@ -2845,6 +3219,7 @@ function resetAndReonboard(){
   S.days={}; S.onboarded=false; S.protocols=[];
   S.templates=JSON.parse(JSON.stringify(GUEST_TEMPLATE));
   S.settings.name=''; S.settings.coachBio=OWNER_BIO;
+  ob=null;
   render(); showOnboarding();
 }
 
