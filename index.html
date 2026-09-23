@@ -175,6 +175,37 @@ nav.bottom{display:none}
 .spin{display:inline-block;animation:spin 1s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 
+/* ---- the score ---- */
+.scorechip{display:inline-flex;align-items:baseline;gap:3px;background:var(--card2);border:1px solid var(--line2);border-radius:999px;padding:3px 11px;cursor:pointer;transition:border-color .15s,background .15s;vertical-align:middle}
+.scorechip:hover{border-color:var(--teal);background:var(--teal-bg)}
+.scorechip .n{font-size:15px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
+.scorechip .d{font-size:10px;color:var(--text3)}
+.scorechip .l{font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--text2);font-weight:700;margin-left:3px}
+.scorehead{display:flex;align-items:center;gap:16px;margin-top:12px;flex-wrap:wrap}
+.scorehead .sv{display:flex;align-items:baseline;gap:3px}
+.scorehead .sv .n{font-size:42px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+.scorehead .sv .d{font-size:14px;color:var(--text3)}
+.scorehead .sm{min-width:0}
+.scorehead .band{font-size:13px;font-weight:650}
+.scorehead .move{font-size:11.5px;margin-top:3px;display:flex;align-items:center;gap:4px;color:var(--text2)}
+.scorehead .move.up{color:var(--teal)}
+.scorehead .move.down{color:var(--coral)}
+.scorehead .move svg{width:13px;height:13px}
+.scorelevers{margin-top:13px;display:flex;flex-direction:column;gap:6px}
+.srow{display:flex;align-items:center;gap:10px}
+.srow .sn{font-size:12px;font-weight:600;min-width:104px;flex-shrink:0}
+.srow .sb{position:relative;flex:1;min-width:60px;height:7px;background:var(--card2);border-radius:4px}
+.srow .sb u{position:absolute;left:50%;top:-2px;width:1px;height:11px;background:var(--line2)}
+.srow .sb i{position:absolute;top:0;height:100%;border-radius:4px}
+.srow .sb i.pos{background:var(--teal)}
+.srow .sb i.neg{background:var(--coral)}
+.srow .sb i.zero{background:transparent}
+.srow .sp{font-size:11.5px;font-weight:700;font-variant-numeric:tabular-nums;min-width:38px;text-align:right;color:var(--text3)}
+.srow .sp.pos{color:var(--teal)}
+.srow .sp.neg{color:var(--coral)}
+.scorefoot{font-size:10.5px;margin-top:9px;line-height:1.45}
+@media (max-width:880px){.srow .sn{min-width:86px;font-size:11.5px}.scorehead .sv .n{font-size:36px}}
+
 /* ---- body map ---- */
 .bodymap .bm-sys{display:flex;flex-wrap:wrap;gap:6px;margin-top:11px}
 .bm-syschip.locked{opacity:.78}
@@ -2173,6 +2204,7 @@ function renderHome(){
     + '<div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap">'
     + '<span class="hero-num" id="ageNum">'+age.toFixed(2)+'</span>'
     + ageBadge
+    + scoreChipHTML()
     + '</div>'
     + '<div class="sub" style="margin-top:4px">chronological '+chrono.toFixed(2)+' · <span id="ageDelta" data-chrono="'+chrono+'">'+(age<=chrono? 'living '+(chrono-age).toFixed(2)+' yrs younger':'running '+(age-chrono).toFixed(2)+' yrs older')+'</span></div>'
     + (function(){var r=todaysRead(S.date); return r.text? '<div class="readline '+(r.dir>0?'up':r.dir<0?'':'flat')+'">'+esc(r.text)+'</div>':'';})()
@@ -2564,6 +2596,182 @@ async function doFoodSearch(){
   }
 }
 
+
+/* =======================================================================
+   THE HEBE SCORE (0–100)
+   -----------------------------------------------------------------------
+   Spec: HEBE_SCORE_BUILD.md · HEBE_MASTER_PLAN.md §5.8.
+
+   score = 50 − (adjustment × 8.33)      −6 → 100 · 0 → 50 · +6 → 0
+
+   It invents nothing. It is a linear rescale of the bounded adjustment
+   `ageAdjustments` already returns every day, so it needs no new data, no
+   backend, no history and no ML.
+
+   WHY IT EXISTS ALONGSIDE HEBE AGE, NOT INSTEAD OF IT.
+   HEBE age is chronological age + adjustment, so a 45-year-old with immaculate
+   habits reads 39 and a 25-year-old wrecking himself reads 30. Comparing those
+   compares *age*, not effort. The adjustment is the age-independent quantity —
+   already bounded, already built from published coefficients. The age stays the
+   anchored honest metric on Home; the score is the comparable one.
+
+   100 means every lever sits at its evidence-backed floor. Not an arbitrary
+   ceiling — the floors come from the same coefficients as the age.
+
+   PRIVATE. Sharing, circles, teams and leaderboards are out of scope and every
+   social hard boundary still stands (handoff §5.6, §5.9).
+   ======================================================================= */
+
+// 50 points across 6 years of adjustment. 50/6 = 8.333…; 8.33 is the constant
+// locked in the design record, and the [0,100] clamp makes the endpoints exact
+// on display (−6 → 99.98 → shows 100).
+const SCORE_PER_YEAR = 8.33;
+
+function computeScore(adjustment){
+  if(adjustment==null || !isFinite(adjustment)) return null;
+  return clamp(50 - adjustment*SCORE_PER_YEAR, 0, 100);
+}
+
+// Lever decomposition, in score points rather than years.
+//
+// ⚠ THE CLAMP TRAP. `ageAdjustments` clamps the TOTAL to ±6 but returns the
+// PARTS UNCLAMPED. The worst case has parts summing to +6.52 against a clamped
+// total of +6.00 — so a naive decomposition prints levers adding to a score of
+// −4 underneath a headline of 0. Scale the parts proportionally when the clamp
+// binds, and tell the reader it happened rather than hiding the discrepancy.
+function scoreParts(parts, total){
+  if(!parts || !parts.length) return { clamped:false, rows:[] };
+  const raw = parts.reduce((a,p)=>a+p[1], 0);
+  const clamped = Math.abs(raw-total) > 1e-9 && Math.abs(raw) > 1e-9;
+  const k = clamped ? total/raw : 1;
+  return {
+    clamped, raw, total,
+    rows: parts.map(([name, yrs])=>{
+      const y = yrs*k;
+      return { name, yrs:y, pts: -y*SCORE_PER_YEAR };   // +points = helping you
+    }).sort((a,b)=> b.pts - a.pts)
+  };
+}
+
+// Score at a given date, from the same 21-day window the age uses.
+function scoreAt(date){
+  const st = windowStats(date, 21);
+  if(!st) return null;
+  const a = ageAdjustments(st);
+  return { score: computeScore(a.total), adjustment: a.total, parts: a.parts, n: st.n };
+}
+
+// Movement — the 30-day change. §5.8: competition runs on movement, never the
+// absolute, because 35→48 is a harder month than 88→90. No new data: the same
+// rescale evaluated 30 days back. A new user has no 30-day history, so this
+// reports notReady rather than inventing a zero.
+const SCORE_MATURE_DAYS = 14, SCORE_MOVE_DAYS = 30;
+function scoreMovement(date){
+  const now = scoreAt(date);
+  if(!now) return null;
+  const back = new Date(date+'T12:00:00'); back.setDate(back.getDate()-SCORE_MOVE_DAYS);
+  const prevKey = dstr(back);
+  const stPrev = windowStats(prevKey, 21);
+  if(!stPrev || stPrev.n < SCORE_MATURE_DAYS){
+    const have = stPrev ? stPrev.n : 0;
+    return { now:now.score, ready:false, have };
+  }
+  const prev = computeScore(ageAdjustments(stPrev).total);
+  return { now:now.score, prev, delta: now.score - prev, ready:true };
+}
+
+// Maturity gate — the same one the age uses. On day one the window is mostly
+// template defaults, so a confident 87 would be a number the app has not earned.
+// Withhold it until the age's own baseline gate passes.
+function scoreReady(){ return confirmedDates().length >= SCORE_MATURE_DAYS; }
+
+// Score band names. Descriptive of the model's own output, never a verdict
+// about the person — the same discipline as PERF_BANDS.
+function scoreBand(s){
+  return s>=85 ? 'every lever near its floor'
+       : s>=70 ? 'most levers working for you'
+       : s>=55 ? 'ahead of neutral'
+       : s>=45 ? 'about neutral'
+       : s>=30 ? 'a few levers are costing you'
+       : 'most levers have room';
+}
+
+// Compact chip for the Home hero. Sits BESIDE the age, never above it — the age
+// is the anchor (D1). Taps through to the full panel on Reports.
+function scoreChipHTML(){
+  if(!scoreReady()) return '';
+  const s = scoreAt(S.date);
+  if(!s || s.score==null) return '';
+  return '<span class="scorechip" data-page="reports" title="HEBE score — see the full breakdown in Reports">'
+    + '<span class="n">'+Math.round(s.score)+'</span><span class="d">/100</span>'
+    + '<span class="l">score</span></span>';
+}
+
+// Full panel — Reports. The number, what moved it, and the lever decomposition.
+function scorePanelHTML(){
+  const nConf = confirmedDates().length;
+  let h = '<div class="card mt fade" id="scoreCard">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">'
+    +   '<h3>HEBE score</h3>'+tierBadge('E','Derived')+'</div>';
+
+  if(!scoreReady()){
+    h += '<div class="sub" style="margin-top:9px;line-height:1.55">Held back until the baseline forms — '
+      + nConf+'/'+SCORE_MATURE_DAYS+' days. Before then the window is mostly your template defaults, '
+      + 'and a confident number built on defaults would be a number HEBE has not earned.</div>';
+    return h + '</div>';
+  }
+
+  const s = scoreAt(S.date);
+  if(!s || s.score==null) return h + '<div class="sub" style="margin-top:9px">Not enough logged days yet.</div></div>';
+  const dec = scoreParts(s.parts, s.adjustment);
+  const mv = scoreMovement(S.date);
+
+  h += '<div class="scorehead">'
+    + '<div class="sv"><span class="n" id="scoreNum">'+Math.round(s.score)+'</span><span class="d">/100</span></div>'
+    + '<div class="sm">'
+    +   '<div class="band">'+esc(scoreBand(s.score))+'</div>';
+  if(mv && mv.ready){
+    const up = mv.delta > 0.5, down = mv.delta < -0.5;
+    h += '<div class="move '+(up?'up':down?'down':'flat')+'">'
+      + (up?ICONS.up:down?ICONS.down:'')+' '
+      + (mv.delta>=0?'+':'')+mv.delta.toFixed(1)+' in '+SCORE_MOVE_DAYS+' days</div>';
+  } else {
+    h += '<div class="move flat">30-day movement available at '+SCORE_MOVE_DAYS+' days'
+      + (mv && mv.have!=null ? ' · '+mv.have+' logged so far' : '')+'</div>';
+  }
+  h += '</div></div>';
+
+  h += '<div class="sub" style="margin-top:10px;line-height:1.55">A rescale of the same bounded '
+    + 'adjustment behind your HEBE age — <b>100</b> is every lever at its evidence-backed floor, '
+    + '<b>50</b> is neutral. Age-independent, so it compares effort rather than age. '
+    + 'It moves on the same weekly rhythm as the rest of HEBE, not day to day.</div>';
+
+  // lever decomposition
+  const span = Math.max(1, ...dec.rows.map(r=>Math.abs(r.pts)));
+  h += '<div class="scorelevers">';
+  dec.rows.forEach(r=>{
+    const pct = Math.abs(r.pts)/span*50;
+    const pos = r.pts > 0.01, neg = r.pts < -0.01;
+    h += '<div class="srow">'
+      + '<span class="sn">'+esc(r.name)+'</span>'
+      + '<span class="sb"><i class="'+(pos?'pos':neg?'neg':'zero')+'" style="width:'+pct.toFixed(1)+'%;'
+      +   (pos?'left:50%':'right:50%')+'"></i><u></u></span>'
+      + '<span class="sp '+(pos?'pos':neg?'neg':'zero')+'">'+(pos?'+':'')+r.pts.toFixed(1)+'</span>'
+      + '</div>';
+  });
+  h += '</div>';
+  h += '<div class="sub scorefoot">Points each lever is adding to or taking from your score, '
+    + 'over the same 21-day window. Positive is helping you.';
+  if(dec.clamped){
+    h += ' <b>The ±6-year cap is binding</b>, so the levers are shown scaled to the capped total '
+      + '(raw sum '+dec.raw.toFixed(2)+'y against a capped '+dec.total.toFixed(2)+'y). '
+      + 'Unscaled they would add to a score the headline never shows.';
+  }
+  h += '</div>';
+  h += '<div class="sub" style="font-size:10.5px;margin-top:8px;line-height:1.45">Derived from your logged '
+    + 'days, not measured. Private to this device — HEBE has no sharing, no circles and no leaderboard.</div>';
+  return h + '</div>';
+}
 
 /* =======================================================================
    BODY MAP — the layered body surface
@@ -3030,6 +3238,8 @@ function renderReports(){
   h += '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><h3>Weekly report</h3><button class="btn primary" id="genReport" style="font-size:12px;padding:6px 12px">'+(S.settings.apiKey?'Generate (AI)':'Generate')+'</button></div>'
     + '<div id="weeklyOut" class="sub" style="margin-top:9px;line-height:1.6;white-space:pre-wrap">'+esc(localStorage.getItem('hebe_lastreport')||'A doctor-handable summary of your last 7 days: sleep, load, recovery signals, food quality, protocol status, and the one thing to change.')+'</div></div>';
   h += '</div>';
+
+  h += scorePanelHTML();
 
   // Patterns HEBE has actually found. Home's "see all patterns" chip has always
   // pointed here; until now there was nothing to land on. Same insights() output,
