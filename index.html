@@ -598,10 +598,30 @@ function ageAdjustments(st){
   if(!st) return { total:0, parts:[] };
   const parts = [];
 
-  // SLEEP — optimum is 7h (not 8h). Dose-response HRs vs 7h (JAHA 2017,
-  // 1.38M people): 5h~1.04, 6h~1.01, 8h~1.07, 9h~1.21. Long sleep penalised
-  // harder than short. Ref ~6.7h (population median) offset via -0.10.
-  let sleep = (st.sleepH <= 7) ? (7-st.sleepH)*0.22 - 0.10 : (st.sleepH-7)*0.85 - 0.10;
+  // SLEEP — Yin et al. 2017 (JAHA, dose-response meta-analysis, 1.38M people):
+  // U-shaped, lowest risk at ~7h, RR 1.06 per hour BELOW 7h and RR 1.13 per hour
+  // ABOVE 7h. Through the Gompertz factor used throughout this file
+  // (11.55·ln(RR)) those reproduce as 0.673 y/h and 1.412 y/h.
+  //
+  // The previous curve used 0.22 y/h below 7h, which UNDER-penalised short sleep
+  // against its own cited source by a factor of three: 4h/night scored +0.56
+  // while 9.5h scored +2.02, so chronic four-hour nights read 3.6x safer than
+  // oversleeping by 2.5h. That was backwards in effect, though not in intent.
+  //
+  // ⚠ THE 7–9h FLAT BAND IS A MODELLING CHOICE, NOT A FINDING. Yin's curve is a
+  // point-minimum at 7h — 8h is already elevated in the paper. Flattening 7–9h is
+  // justified by two things outside Yin: the AASM 7–9h recommended band, and the
+  // well-documented reverse-causation problem in the long-sleep association
+  // (illness causes long sleep at least as much as the reverse), which makes
+  // applying the full published gradient as if it were causal an overstatement.
+  // So this lever is "Yin below 7h and above 9h, with an evidence-informed flat
+  // band between" — NOT pure Yin. Attributing the flat band to Yin would break
+  // the same honesty rule this fix exists to protect.
+  //
+  // Ref ~6.7h (population median) offset via -0.10, unchanged.
+  const sleep = st.sleepH < 7  ? (7-st.sleepH)*0.67 - 0.10
+              : st.sleepH > 9  ? (st.sleepH-9)*1.41 - 0.10
+              :                  -0.10;
   parts.push(['Sleep', clamp(sleep, -0.3, 2.5)]);
 
   // TRAINING VOLUME — cardiorespiratory fitness / activity. ~13% lower
@@ -3556,7 +3576,23 @@ function renderSetup(){
     + '<div style="display:flex;gap:8px;margin-top:11px;flex-wrap:wrap">'
     + '<a class="btn" href="'+LINKS.github+'" target="_blank" rel="noopener">★ Star it on GitHub</a>'
     + (LINKS.linkedin ? '<a class="btn" href="'+LINKS.linkedin+'" target="_blank" rel="noopener">Follow the build on LinkedIn</a>' : '')
-    + '</div></div>';
+    + '</div>'
+    + '<details class="reveal"><summary>How the sleep lever is built<span class="sub2"> · and the one modelling choice in it</span></summary>'
+    +   '<div class="sub" style="line-height:1.6;padding-top:4px">'
+    +     'Sleep is weighted from <b>Yin et al. 2017</b> (<i>JAHA</i>, dose-response meta-analysis, 1.38M people): '
+    +     'risk is lowest around <b>7h</b> and rises in both directions — about <b>6% per hour below 7h</b> and '
+    +     '<b>13% per hour above</b>. HEBE applies those published slopes outside a flat <b>7–9h</b> band.'
+    +   '</div>'
+    +   '<div class="sub" style="line-height:1.6;margin-top:8px;padding:9px 11px;border-radius:9px;background:var(--amber-bg);border:1px solid var(--line2)">'
+    +     '<b>The 7–9h flat band is a modelling choice, not a finding.</b> Yin\'s curve has a point minimum at 7h — '
+    +     '8h is already slightly elevated in the paper. HEBE flattens 7–9h for two reasons that come from outside '
+    +     'that study: it is the AASM\'s recommended range for adults, and the long-sleep association has a '
+    +     'well-documented reverse-causation problem (illness causes long sleep at least as much as long sleep '
+    +     'causes harm), so applying the full published gradient as if it were causal would overstate it. '
+    +     'So this lever is <b>Yin below 7h and above 9h, with an evidence-informed flat band between</b> — not pure Yin. '
+    +     'Saying otherwise would be attributing our choice to their paper.'
+    +   '</div>'
+    + '</details></div>';
   return h;
 }
 
