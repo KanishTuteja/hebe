@@ -175,6 +175,11 @@ nav.bottom{display:none}
 .spin{display:inline-block;animation:spin 1s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 
+/* ---- provenance ---- */
+.provtag{font-size:10px;letter-spacing:.03em;font-weight:700;text-transform:uppercase;padding:2px 7px;border-radius:999px;border:1px solid var(--line2);color:var(--text2);white-space:nowrap;cursor:help}
+.provtag.sensor{color:var(--purple-dk);border-color:var(--purple);background:var(--purple-bg)}
+.scorehero .provtag{align-self:center}
+.scorehead .provtag{margin-left:8px}
 /* ---- score v2: the hero ---- */
 .scorehero{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:2px}
 .scorehero .hm{font-size:17px;color:var(--text3);font-weight:600;margin-left:-4px}
@@ -1184,6 +1189,9 @@ en:{
  sc_whatsMoving:"What's moving it", sc_inPoints:"your seven levers, in points",
  sc_leverFoot:"Points each lever is adding to or taking from your score, over your 21-day window. Positive is helping you.",
  sc_ptsTable:"pts on the table", sc_modelled:"modelled, over your 21-day window", sc_yrsShort:"{0} yrs",
+ pv_self:"self-reported", pv_sensor:"from sensors", pv_mixed:"{0}/{1} days from sensors",
+ pv_why:"Where this score’s data came from. HEBE has no device connection yet, so everything you log is typed by you — and anyone comparing scores can see that.",
+ pv_line:"Provenance", pv_explain:"A self-reported score and a sensor-backed score are not the same claim. HEBE shows which one you are looking at, always, and will keep showing it when device import arrives.",
  sb_floor:"every lever near its floor", sb_most:"most levers working for you", sb_ahead:"ahead of neutral",
  sb_neutral:"about neutral", sb_few:"a few levers are costing you", sb_room:"most levers have room",
  nutToday:"Nutrition today", notInAge:"tracked alongside · not in the age",
@@ -1284,6 +1292,9 @@ fr:{
  sc_whatsMoving:"Ce qui le fait bouger", sc_inPoints:"tes sept leviers, en points",
  sc_leverFoot:"Points que chaque levier ajoute à ton score ou lui retire, sur ta fenêtre de 21 jours. Positif = ça t’aide.",
  sc_ptsTable:"pts à prendre", sc_modelled:"modélisé, sur ta fenêtre de 21 jours", sc_yrsShort:"{0} ans",
+ pv_self:"auto-déclaré", pv_sensor:"issu de capteurs", pv_mixed:"{0}/{1} jours issus de capteurs",
+ pv_why:"D’où viennent les données de ce score. HEBE n’est encore connecté à aucun appareil : tout ce que tu enregistres est saisi par toi — et quiconque compare les scores le voit.",
+ pv_line:"Provenance", pv_explain:"Un score auto-déclaré et un score issu de capteurs ne disent pas la même chose. HEBE indique toujours lequel tu regardes, et continuera de l’indiquer quand l’import d’appareils arrivera.",
  sb_floor:"chaque levier proche de son plancher", sb_most:"la plupart des leviers travaillent pour toi",
  sb_ahead:"au-dessus du neutre", sb_neutral:"environ neutre", sb_few:"quelques leviers te coûtent",
  sb_room:"la plupart des leviers ont de la marge",
@@ -2781,6 +2792,51 @@ function scoreMovement(date){
 function scoreReady(){ return confirmedDates().length >= SCORE_MATURE_DAYS; }
 
 
+/* ---------- provenance (HEBE_SCORE_V2.md §2.3, D3 un-deferred) -------------
+   Every day carries a source, and the score shows it. This has to exist before
+   anyone is ranked against anyone: a self-reported 80 and a sensor-backed 80
+   are not the same claim, and a board that hides the difference is a board that
+   rewards optimistic typing.
+
+   Today HEBE has no device path — Apple Health import and vendor OAuth are both
+   unbuilt (handoff §11) — so every day is self-reported and the surface says
+   exactly that. Nothing here pretends otherwise.
+
+   DERIVED, NEVER STORED. A side feature that wrote provenance into a day doc
+   would bump updatedAt and mark an unlogged day as logged, which is the bug
+   class handoff §4 hazard 1 exists to prevent. The reader already honours the
+   markers a future import will set, so that import needs no migration:
+       d.provenance    === 'sensor'   — the whole day came from a device
+       d.wearable.src  === 'sensor'   — the wearable block did
+   ------------------------------------------------------------------------- */
+const PROV = { SELF:'self-reported', SENSOR:'sensor', MIXED:'mixed' };
+function dayProvenance(date){
+  const d = S.days[date];
+  if(!d) return PROV.SELF;
+  if(d.provenance === PROV.SENSOR) return PROV.SENSOR;
+  if(d.wearable && d.wearable.src === PROV.SENSOR) return PROV.SENSOR;
+  return PROV.SELF;
+}
+// Provenance of the score itself — of the 21-day window it is computed from,
+// not of today alone, because that window is what the number actually is.
+function scoreProvenance(date){
+  const dates = confirmedDates(date).slice(-21);
+  if(!dates.length) return { key:PROV.SELF, sensorDays:0, n:0 };
+  const sensor = dates.filter(k=>dayProvenance(k)===PROV.SENSOR).length;
+  return { key: sensor===0 ? PROV.SELF : sensor===dates.length ? PROV.SENSOR : PROV.MIXED,
+           sensorDays: sensor, n: dates.length };
+}
+function provenanceLabel(p){
+  return p.key===PROV.SENSOR ? t('pv_sensor')
+       : p.key===PROV.MIXED  ? t('pv_mixed', p.sensorDays, p.n)
+       : t('pv_self');
+}
+function provenanceTagHTML(date){
+  const p = scoreProvenance(date);
+  return '<span class="provtag '+(p.key===PROV.SELF?'self':'sensor')+'" title="'+esc(t('pv_why'))+'">'
+    + esc(provenanceLabel(p))+'</span>';
+}
+
 /* ---------- score v2 · phase 1 · the score as the hero -------------------
    HEBE_SCORE_V2.md §2. Owner decision 22 Sept 2026: the score is the main
    feature. It takes the hero slot and the HEBE age moves directly beneath it
@@ -2860,6 +2916,7 @@ function scoreHeroHTML(age, chrono, ageBadge){
     + '<div class="scorehero">'
     +   '<span class="hero-num" id="scoreHero">'+v.toFixed(1)+'</span>'
     +   '<span class="hm">/100</span>'
+    +   provenanceTagHTML(S.date)
     +   (wk && wk.ready
         ? '<span class="badge '+(wk.delta>=-0.05?'teal':'gray')+'">'
           + (wk.delta>=-0.05?ICONS.up:ICONS.down)+' '+(wk.delta>=0?'+':'')+wk.delta.toFixed(1)+' '+t('sc_thisWeek')+'</span>'
@@ -2945,7 +3002,7 @@ function scorePanelHTML(){
   const mv = scoreMovement(S.date);
 
   h += '<div class="scorehead">'
-    + '<div class="sv"><span class="n" id="scoreNum">'+Math.round(s.score)+'</span><span class="d">/100</span></div>'
+    + '<div class="sv"><span class="n" id="scoreNum">'+Math.round(s.score)+'</span><span class="d">/100</span>'+provenanceTagHTML(S.date)+'</div>'
     + '<div class="sm">'
     +   '<div class="band">'+esc(scoreBand(s.score))+'</div>';
   if(mv && mv.ready){
@@ -2986,7 +3043,9 @@ function scorePanelHTML(){
       + 'Unscaled they would add to a score the headline never shows.';
   }
   h += '</div>';
-  h += '<div class="sub" style="font-size:10.5px;margin-top:8px;line-height:1.45">Derived from your logged '
+  h += '<div class="sub" style="font-size:10.5px;margin-top:8px;line-height:1.45"><b>'+esc(t('pv_line'))+'.</b> '
+    + esc(t('pv_explain'))+'</div>';
+  h += '<div class="sub" style="font-size:10.5px;margin-top:6px;line-height:1.45">Derived from your logged '
     + 'days, not measured. Private to this device — HEBE has no sharing, no circles and no leaderboard.</div>';
   return h + '</div>';
 }
