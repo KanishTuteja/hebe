@@ -51,6 +51,7 @@ main{padding:22px 26px 90px;max-width:1060px;width:100%;margin:0 auto}
 .onemove{background:linear-gradient(180deg,var(--purple-bg),var(--card));border:1px solid var(--purple);border-radius:var(--r);padding:15px 18px;margin-top:14px;display:flex;gap:14px;align-items:flex-start}
 .onemove .ic{flex-shrink:0;width:34px;height:34px;border-radius:9px;background:var(--purple);color:#fff;display:flex;align-items:center;justify-content:center}
 .onemove .k{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--purple-dk);font-weight:700}
+.onemove .k .sub2{font-weight:500;text-transform:none;letter-spacing:0;color:var(--text3)}
 .onemove .mv{font-size:16px;font-weight:700;margin-top:2px;line-height:1.3}
 .onemove .wy{font-size:12.5px;color:var(--text2);margin-top:3px;line-height:1.45}
 .onemove .worth{margin-left:auto;text-align:right;flex-shrink:0}
@@ -118,6 +119,17 @@ label.f{font-size:11.5px;color:var(--text2);display:block;margin-bottom:3px}
 .checkbar.done{background:var(--teal-bg)}
 .checkbar .q{font-size:13.5px;font-weight:600}
 .checkbar .sub2{font-weight:400;color:var(--text2);font-size:12px}
+/* Home top block. Desktop is the original grid2 (5fr/4fr, 14px gap) with the
+   check-in bar and ONE MOVE spanning full width beneath it — unchanged. The only
+   reason they live inside the grid is so the mobile rules below can reorder them
+   ahead of the coach card. */
+.homeTop>.ht-check,.homeTop>.ht-move{grid-column:1/-1}
+.homeTop .checkbar,.homeTop .onemove{margin-top:0}
+/* Continuation of the one-move spine inside the debrief — deliberately quiet, so
+   it reads as the same instruction carried forward, not a competing directive. */
+.carry{margin-top:12px;padding-top:10px;border-top:1px solid var(--line);display:flex;gap:9px;align-items:baseline;flex-wrap:wrap}
+.carry .lab{font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;font-weight:700;color:var(--text3);flex-shrink:0}
+.carry .b{font-size:12.5px;line-height:1.5;color:var(--text2);flex:1;min-width:180px}
 .reveal{margin-top:10px}
 .reveal>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:11px;letter-spacing:.05em;text-transform:uppercase;font-weight:700;color:var(--text2);padding:9px 0;border-top:1px solid var(--line)}
 .reveal>summary::-webkit-details-marker{display:none}
@@ -145,6 +157,12 @@ nav.bottom{display:none}
   aside{display:none}
   main{padding:16px 14px 96px}
   .grid2,.grid2eq{grid-template-columns:1fr}
+  /* locked Home hierarchy on a phone: age+read → check-in → one move → the read-it-later debrief */
+  .homeTop{display:flex;flex-direction:column;gap:14px}
+  .homeTop>.ht-hero{order:1}
+  .homeTop>.ht-check{order:2}
+  .homeTop>.ht-move{order:3}
+  .homeTop>.ht-coach{order:4}
   .grid4{grid-template-columns:repeat(2,1fr)}
   nav.bottom{display:grid;grid-template-columns:repeat(6,1fr);position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--line);padding:8px 4px calc(10px + env(safe-area-inset-bottom));z-index:50}
   nav.bottom button{border:none;background:none;font-family:inherit;font-size:10px;color:var(--text3);display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer}
@@ -1838,7 +1856,7 @@ function baseOpts(yMin,yMax){
   const tick = { color:css('--text3'), font:{size:10.5} };
   return { responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
     plugins:{ legend:{display:false}, tooltip:{ backgroundColor:css('--card'), titleColor:css('--text'), bodyColor:css('--text2'), borderColor:css('--line2'), borderWidth:1, padding:10, displayColors:false } },
-    scales:{ x:{grid:{color:css('--line')},ticks:tick}, y:{min:yMin,max:yMax,grid:{color:css('--line')},ticks:tick} } };
+    scales:{ x:{grid:{color:css('--line')},ticks:{...tick}}, y:{min:yMin,max:yMax,grid:{color:css('--line')},ticks:{...tick}} } };
 }
 function destroyCharts(){ Object.values(charts).forEach(c=>{try{c.destroy();}catch(e){}}); charts={}; }
 function rangeDates(n){
@@ -2024,7 +2042,7 @@ function oneMoveHTML(){
   return '<div class="onemove fade">'
     + '<div class="ic">'+ICONS.bolt+'</div>'
     + '<div style="flex:1;min-width:0">'
-    +   '<div class="k">'+(past?'That day’s one move':'Today’s one move')+'</div>'
+    +   '<div class="k">'+(past?'That day’s one move':'Today’s one move')+'<span class="sub2"> · your 21-day pattern</span></div>'
     +   '<div class="mv">'+esc(lev.move)+'</div>'
     +   '<div class="wy">'+esc(lev.why)+'</div>'
     + '</div>'
@@ -2094,7 +2112,7 @@ function renderHome(){
   } else {
     ageBadge = (trend!=null
       ? '<span class="badge '+(trend<=0?'teal':'coral')+'">'+(trend<=0?ICONS.down:ICONS.up)+' '+(trend<=0?'':'+')+trend.toFixed(2)+' /mo</span>'
-      : '<span class="badge gray">baseline forming · '+nConf+'/'+MATURE_DAYS+' days</span>');
+      : '<span class="badge gray">trend forming</span>');
     if(nConf < SETTLE_DAYS) ageNote = 'Now giving a fair daily read ('+nConf+'/'+SETTLE_DAYS+'). It keeps firming up — full settled baseline at ~'+SETTLE_DAYS+' days.';
   }
 
@@ -2115,8 +2133,8 @@ function renderHome(){
       + '</div></div>';
   }
 
-  h += '<div class="grid2 fade">';
-  h += '<div class="card"><div class="sub">Your HEBE age</div>'
+  h += '<div class="grid2 homeTop fade">';
+  h += '<div class="card ht-hero"><div class="sub">Your HEBE age</div>'
     + '<div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap">'
     + '<span class="hero-num" id="ageNum">'+age.toFixed(2)+'</span>'
     + ageBadge
@@ -2128,18 +2146,19 @@ function renderHome(){
     + '<div class="sub" style="font-size:11px;margin-top:2px">hover to scrub · click a day for its story</div>'
     + (function(){var f=forkHTML(nConf, MATURE_DAYS); return f? '<details class="reveal"><summary>Your trajectory<span class="sub2"> · 30-day trend · 10-year outlook</span></summary>'+f+'</details>':'';})()
     + '</div>';
-  h += '<div class="card" style="display:flex;flex-direction:column"><div class="coach-tag">'+ICONS.chat+' '+segLbl+(coach.ai?' · AI':'')+'</div>'
+  h += '<div class="card ht-coach" style="display:flex;flex-direction:column"><div class="coach-tag">'+ICONS.chat+' '+segLbl+(coach.ai?' · AI':'')+'</div>'
     + '<div style="font-size:13.5px;line-height:1.55;margin-top:7px">'+esc(coach.text)+'</div>'
     + (function(){var fr=debriefHTML(S.date); return fr? '<details class="reveal" '+(coach.seg==='evening'?'open':'')+'><summary>Your full read<span class="sub2"> · band, domains, what moved today</span></summary>'+fr+'</details>':'';})()
     + '<div style="margin-top:auto;padding-top:10px">'+(S.settings.apiKey?'<button class="btn" id="coachAiBtn" style="font-size:12px;padding:6px 12px">'+(coach.ai?'Regenerate':'Ask the coach (AI)')+'</button>':'<span class="sub">Add an API key in Setup for the live coach</span>')+'</div></div>';
-  h += '</div>';
-
-  // Check-in state — right after the read; the only mandatory interaction.
+  // Check-in and ONE MOVE sit INSIDE .homeTop so the mobile stylesheet can order
+  // them ahead of the coach card. Desktop layout is unchanged. On a phone the
+  // stacked debrief used to push the 10-second check-in ~1.5 screens down, which
+  // inverted the locked hierarchy: age → read → check-in → one move.
   const isPast = S.date < todayStr();
-  h += checkbarHTML(d, isPast, coach.seg);
-
-  // ONE MOVE — the single dominant action for the day.
-  h += oneMoveHTML();
+  h += '<div class="ht-check">'+checkbarHTML(d, isPast, coach.seg)+'</div>';
+  const oneMove = oneMoveHTML();
+  if(oneMove) h += '<div class="ht-move">'+oneMove+'</div>';
+  h += '</div>';
 
   // Supporting context, quieter. (Exploration — trajectory + full read — lives
   // collapsed inside the hero cards above.)
@@ -2216,11 +2235,17 @@ function debriefHTML(date){
      + '</div>';
   h += '</div></div>';
 
-  // #1 fix for tomorrow
+  // Carries into tomorrow — the SAME action spine as oneMoveHTML, never a second
+  // directive. The ledger above is a single day; the one move is the 21-day rolling
+  // pattern. When the two disagree it is only because of that, so name the window
+  // rather than printing two contradictory instructions 250px apart.
   const topFix = led.hurt[0];
-  const fixText = topFix ? topFix.fix : 'Nothing dragged today — protect your sleep and repeat it.';
-  h += '<div class="insight" style="margin-top:12px"><span style="color:var(--purple);flex-shrink:0;width:17px;margin-top:2px">'+ICONS.bulb+'</span>'
-     + '<div><div class="t">Tomorrow\'s one move</div><div class="b">'+esc(fixText)+'</div></div></div>';
+  const carryLev = topLever(date);
+  let carryHTML;
+  if(topFix) carryHTML = esc(topFix.fix);
+  else if(carryLev) carryHTML = 'Nothing dragged today. Your one move — <b>'+esc(carryLev.move.toLowerCase())+'</b> — is about your 21-day pattern, not this day.';
+  else carryHTML = 'Nothing dragged today — protect your sleep and repeat it.';
+  h += '<div class="carry"><span class="lab">Carries into tomorrow</span><span class="b">'+carryHTML+'</span></div>';
 
   h += '<div class="sub" style="font-size:10.5px;margin-top:9px;line-height:1.4">Estimate from your logged day, not a diagnosis. Years shown are age-equivalent effects of sustaining today’s pattern.</div>';
   h += '</div>';
@@ -2585,6 +2610,30 @@ function renderReports(){
   h += '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><h3>Weekly report</h3><button class="btn primary" id="genReport" style="font-size:12px;padding:6px 12px">'+(S.settings.apiKey?'Generate (AI)':'Generate')+'</button></div>'
     + '<div id="weeklyOut" class="sub" style="margin-top:9px;line-height:1.6;white-space:pre-wrap">'+esc(localStorage.getItem('hebe_lastreport')||'A doctor-handable summary of your last 7 days: sleep, load, recovery signals, food quality, protocol status, and the one thing to change.')+'</div></div>';
   h += '</div>';
+
+  // Patterns HEBE has actually found. Home's "see all patterns" chip has always
+  // pointed here; until now there was nothing to land on. Same insights() output,
+  // listed in full instead of one rotating line. Correlation within one person —
+  // labelled as such, never presented as a result.
+  const pats = insights();
+  const nPat = confirmedDates().length;
+  h += '<div class="card mt fade" id="patternsCard">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">'
+    +   '<h3>What HEBE has noticed about you</h3>'
+    +   '<span class="badge gray">'+nPat+' logged day'+(nPat===1?'':'s')+'</span></div>';
+  if(nPat < 7){
+    h += '<div class="sub" style="margin-top:9px;line-height:1.55">Patterns need about a week of logged days before they mean anything. '
+       + (7-nPat) + ' more and the first ones show up here.</div>';
+  } else if(!pats.length){
+    h += '<div class="sub" style="margin-top:9px;line-height:1.55">Nothing has separated from the noise yet. That is a real answer — it means no lever in your log is behaving differently from the rest.</div>';
+  } else {
+    h += '<div id="patternsList" style="margin-top:10px;display:flex;flex-direction:column;gap:8px">'
+      + pats.map(function(p){ return '<div class="insight"><span style="color:var(--purple);flex-shrink:0;width:17px;margin-top:2px">'+ICONS.bulb+'</span><div class="b">'+esc(p)+'</div></div>'; }).join('')
+      + '</div>';
+    h += '<div class="sub" style="font-size:10.5px;margin-top:10px;line-height:1.45">Observed in your own logged days — a within-person correlation, not a controlled result. It sharpens as the record grows.</div>';
+  }
+  h += '</div>';
+
   return h;
 }
 function reportCharts(){
