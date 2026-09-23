@@ -175,6 +175,24 @@ nav.bottom{display:none}
 .spin{display:inline-block;animation:spin 1s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 
+/* ---- score v2: the hero ---- */
+.scorehero{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:2px}
+.scorehero .hm{font-size:17px;color:var(--text3);font-weight:600;margin-left:-4px}
+.scorehero .badge{margin-left:6px;white-space:nowrap}
+.scoreage .badge{white-space:nowrap;margin-left:auto}
+.scoreband{font-size:14.5px;font-weight:650;margin-top:7px;line-height:1.4}
+.scoreband .sub2{font-weight:500;color:var(--text2)}
+.scorereveal{font-size:13px;font-weight:650;margin-top:8px;padding:7px 11px;border-radius:9px;background:var(--card2);display:inline-block}
+.scorereveal.up{background:var(--teal-bg);color:var(--teal-dk)}
+.scorereveal.down,.scorereveal.flat{background:var(--card2);color:var(--text2)}
+.scoreage{font-size:12.5px;color:var(--text2);margin-top:10px;padding-top:9px;border-top:1px solid var(--line);display:flex;align-items:baseline;gap:7px;flex-wrap:wrap}
+.scoreage b{font-size:15px;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums}
+.scoreage .sub,.scoreage .sub2{font-size:12px}
+.scoreunlock{margin-top:10px;padding:9px 11px;border-radius:9px;background:var(--teal-bg);border:1px solid var(--line2);font-size:12.5px;font-weight:650;color:var(--teal-dk);line-height:1.5}
+.scoreunlock .sub2{font-weight:500;color:var(--text2)}
+.onemove .omlabel{font-size:11px;color:var(--text3);margin-top:4px}
+@media (max-width:880px){.scoreage{font-size:12px}}
+
 /* ---- the score ---- */
 .scorechip{display:inline-flex;align-items:baseline;gap:3px;background:var(--card2);border:1px solid var(--line2);border-radius:999px;padding:3px 11px;cursor:pointer;transition:border-color .15s,background .15s;vertical-align:middle}
 .scorechip:hover{border-color:var(--teal);background:var(--teal-bg)}
@@ -1137,6 +1155,17 @@ en:{
  gMacro:"Fibre and fatty acids", gMineral:"Minerals", gVitamin:"Vitamins",
  offNote:"Packaged foods contribute macros and fibre only — Open Food Facts micronutrient coverage is patchy and its units vary by field, so guessing would risk a silent error. Those gaps show as <b>unknown</b>, never as zero.",
  lexique:"Glossary — the vocabulary of food tracking",
+ sc_yourScore:"Your HEBE score", sc_thisWeek:"this week", sc_weekPending:"weekly movement at 21 days",
+ sc_toNext:"{0} pts to “{1}”", sc_hebeAge:"HEBE age", sc_chrono:"chronological {0}",
+ sc_younger:"living {0} yrs younger", sc_older:"running {0} yrs older",
+ sc_holding:"holding steady", sc_todayDelta:"{0} today",
+ sc_unlock:"Your score unlocks in {0} days", sc_unlock1:"Your score unlocks tomorrow",
+ sc_unlockWhy:"it needs 14 logged days before it means anything",
+ sc_whatsMoving:"What's moving it", sc_inPoints:"your seven levers, in points",
+ sc_leverFoot:"Points each lever is adding to or taking from your score, over your 21-day window. Positive is helping you.",
+ sc_ptsTable:"pts on the table", sc_modelled:"modelled, over your 21-day window", sc_yrsShort:"{0} yrs",
+ sb_floor:"every lever near its floor", sb_most:"most levers working for you", sb_ahead:"ahead of neutral",
+ sb_neutral:"about neutral", sb_few:"a few levers are costing you", sb_room:"most levers have room",
  nutToday:"Nutrition today", notInAge:"tracked alongside · not in the age",
  ofNutrients:"of {0} nutrients at target", furthestShort:"Furthest short:",
  allAtTarget:"Every nutrient at target today.",
@@ -1226,6 +1255,18 @@ fr:{
  gMacro:"Fibres et acides gras", gMineral:"Minéraux", gVitamin:"Vitamines",
  offNote:"Les aliments emballés n’apportent que les macros et les fibres — la couverture d’Open Food Facts en micronutriments est partielle et ses unités varient selon le champ, donc deviner risquerait une erreur silencieuse. Ces trous s’affichent comme <b>inconnu</b>, jamais comme zéro.",
  lexique:"Lexique — vocabulaire du suivi",
+ sc_yourScore:"Ton score HEBE", sc_thisWeek:"cette semaine", sc_weekPending:"évolution hebdo à 21 jours",
+ sc_toNext:"{0} pts avant « {1} »", sc_hebeAge:"Âge HEBE", sc_chrono:"âge réel {0}",
+ sc_younger:"soit {0} ans de moins", sc_older:"soit {0} ans de plus",
+ sc_holding:"stable", sc_todayDelta:"{0} aujourd’hui",
+ sc_unlock:"Ton score se débloque dans {0} jours", sc_unlock1:"Ton score se débloque demain",
+ sc_unlockWhy:"il lui faut 14 jours enregistrés pour vouloir dire quelque chose",
+ sc_whatsMoving:"Ce qui le fait bouger", sc_inPoints:"tes sept leviers, en points",
+ sc_leverFoot:"Points que chaque levier ajoute à ton score ou lui retire, sur ta fenêtre de 21 jours. Positif = ça t’aide.",
+ sc_ptsTable:"pts à prendre", sc_modelled:"modélisé, sur ta fenêtre de 21 jours", sc_yrsShort:"{0} ans",
+ sb_floor:"chaque levier proche de son plancher", sb_most:"la plupart des leviers travaillent pour toi",
+ sb_ahead:"au-dessus du neutre", sb_neutral:"environ neutre", sb_few:"quelques leviers te coûtent",
+ sb_room:"la plupart des leviers ont de la marge",
  nutToday:"Nutrition du jour", notInAge:"suivi en parallèle · pas dans l’âge",
  ofNutrients:"sur {0} nutriments à l’objectif", furthestShort:"Les plus loin :",
  allAtTarget:"Tous les nutriments à l’objectif aujourd’hui.",
@@ -1871,9 +1912,16 @@ async function applyCheckin(asPlanned){
   const wt = document.querySelector('.wt-chip.on');
   if(wt && d.template==='weekday'){ d.workoutType = wt.dataset.wt; S.lastWorkoutType = wt.dataset.wt; }
   const wasPast = S.date < todayStr();
+  // Score reveal. Pure reads either side of the write - nothing here touches the
+  // day doc. Skipped on a backfill, which lands on a different date anyway.
+  const scBefore = (!wasPast && scoreReady()) ? scoreAt(S.date) : null;
   d.confirmed = true;
   if(wasPast) d.backfilled = true;
   saveDay(S.date);
+  const scAfter = (!wasPast && scoreReady()) ? scoreAt(S.date) : null;
+  scoreReveal = (scBefore && scAfter && scBefore.score!=null && scAfter.score!=null)
+    ? { from: scBefore.score, to: scAfter.score, lever: scoreTopMover(scBefore.parts, scAfter.parts) }
+    : null;
   checkinOpen=false; activeChips.clear();
   if(wasPast){
     // Catching up: walk straight to the next missed day, then land back on today.
@@ -2111,8 +2159,13 @@ function oneMoveHTML(){
     +   '<div class="k">'+(past?'That day’s one move':'Today’s one move')+'<span class="sub2"> · your 21-day pattern</span></div>'
     +   '<div class="mv">'+esc(lev.move)+'</div>'
     +   '<div class="wy">'+esc(lev.why)+'</div>'
+    +   (scoreReady()? '<div class="omlabel">≈'+t('sc_yrsShort', lev.gain.toFixed(1))+' · '+t('sc_modelled')+'</div>' : '')
     + '</div>'
-    + '<div class="worth"><span class="n">'+lev.gain.toFixed(1)+'</span><span class="u">yrs on the table</span></div>'
+    // Priced in the score's own unit once the score exists. Below the gate there
+    // is no score number anywhere, so it stays in years.
+    + (scoreReady()
+       ? '<div class="worth"><span class="n">+'+(lev.gain*SCORE_PER_YEAR).toFixed(1)+'</span><span class="u">'+t('sc_ptsTable')+'</span></div>'
+       : '<div class="worth"><span class="n">'+lev.gain.toFixed(1)+'</span><span class="u">yrs on the table</span></div>')
     + '</div>';
 }
 // One-line "today's read" for the hero — composed ONLY from existing engine
@@ -2200,18 +2253,26 @@ function renderHome(){
   }
 
   h += '<div class="grid2 homeTop fade">';
-  h += '<div class="card ht-hero"><div class="sub">Your HEBE age</div>'
-    + '<div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap">'
-    + '<span class="hero-num" id="ageNum">'+age.toFixed(2)+'</span>'
-    + ageBadge
-    + scoreChipHTML()
-    + '</div>'
-    + '<div class="sub" style="margin-top:4px">chronological '+chrono.toFixed(2)+' · <span id="ageDelta" data-chrono="'+chrono+'">'+(age<=chrono? 'living '+(chrono-age).toFixed(2)+' yrs younger':'running '+(age-chrono).toFixed(2)+' yrs older')+'</span></div>'
+  // Owner decision 22 Sept 2026 (HEBE_SCORE_V2.md §2.1): the score is the hero
+  // and the age sits directly beneath it as the explanation. Under the maturity
+  // gate there is no score number anywhere, so the hero stays the age exactly as
+  // it was, plus the line that makes the lock a reason to keep logging.
+  const scoreOn = scoreReady();
+  h += '<div class="card ht-hero">'
+    + (scoreOn ? scoreHeroHTML(age, chrono, ageBadge)
+       : '<div class="sub">'+t('sc_hebeAge')+'</div>'
+         + '<div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap">'
+         + '<span class="hero-num" id="ageNum">'+age.toFixed(2)+'</span>'
+         + ageBadge
+         + '</div>'
+         + '<div class="sub" style="margin-top:4px">'+t('sc_chrono', chrono.toFixed(2))+' · <span id="ageDelta" data-chrono="'+chrono+'">'+ageDeltaText(age, chrono)+'</span></div>'
+         + scoreUnlockHTML(nConf))
     + (function(){var r=todaysRead(S.date); return r.text? '<div class="readline '+(r.dir>0?'up':r.dir<0?'':'flat')+'">'+esc(r.text)+'</div>':'';})()
     + (ageNote ? '<div class="sub" style="margin-top:8px;font-size:11.5px;line-height:1.5;background:var(--amber-bg);border:1px solid var(--line2);padding:8px 10px;border-radius:9px">'+ageNote+'</div>' : '')
     + '<div class="chartbox" style="height:120px;margin-top:12px"><canvas id="chAgeSpark"></canvas></div>'
     + '<div class="sub" style="font-size:11px;margin-top:2px">hover to scrub · click a day for its story</div>'
     + (function(){var f=forkHTML(nConf, MATURE_DAYS); return f? '<details class="reveal"><summary>Your trajectory<span class="sub2"> · 30-day trend · 10-year outlook</span></summary>'+f+'</details>':'';})()
+    + scoreLeversHomeHTML()
     + '</div>';
   h += '<div class="card ht-coach" style="display:flex;flex-direction:column"><div class="coach-tag">'+ICONS.chat+' '+segLbl+(coach.ai?' · AI':'')+'</div>'
     + '<div style="font-size:13.5px;line-height:1.55;margin-top:7px">'+esc(coach.text)+'</div>'
@@ -2342,12 +2403,26 @@ function homeCharts(){
     // the "yrs younger / older" sub-line follows the same animated value, so the
     // two never disagree mid-count (it lands on the first check-in, the most-watched second)
     const dl = document.getElementById('ageDelta'), chrono = dl ? parseFloat(dl.dataset.chrono) : NaN;
-    const sub = v => { if(!dl || !isFinite(chrono)) return; dl.textContent = v<=chrono ? 'living '+(chrono-v).toFixed(2)+' yrs younger' : 'running '+(v-chrono).toFixed(2)+' yrs older'; };
+    const sub = v => { if(!dl || !isFinite(chrono)) return; dl.textContent = ageDeltaText(v, chrono); };
     const step = ts=>{ if(!t0) t0=ts; const p=Math.min(1,(ts-t0)/1200), e2=1-Math.pow(1-p,3);
       const v = start+(target-start)*e2; el.textContent=v.toFixed(2); sub(v); if(p<1) requestAnimationFrame(step); };
     sub(start);
     requestAnimationFrame(step);
   }
+  // The score hero uses the same count-up. After a check-in it starts from
+  // yesterday's value rather than the generic offset, so the number visibly
+  // answers the day that was just logged (HEBE_SCORE_V2.md §2.4).
+  const sEl = document.getElementById('scoreHero');
+  if(sEl && !sEl._animated){ sEl._animated=true;
+    const target = parseFloat(sEl.textContent);
+    const start = (scoreReveal && isFinite(scoreReveal.from)) ? scoreReveal.from : Math.max(0, target-6);
+    let s0=null;
+    const sstep = ts=>{ if(!s0) s0=ts; const p=Math.min(1,(ts-s0)/1200), e=1-Math.pow(1-p,3);
+      sEl.textContent = (start+(target-start)*e).toFixed(1); if(p<1) requestAnimationFrame(sstep); };
+    sEl.textContent = start.toFixed(1);
+    requestAnimationFrame(sstep);
+  }
+  scoreReveal = null;   // consumed once; never replays on a plain re-render
 }
 
 function renderPerf(){
@@ -2685,19 +2760,142 @@ function scoreMovement(date){
 // Withhold it until the age's own baseline gate passes.
 function scoreReady(){ return confirmedDates().length >= SCORE_MATURE_DAYS; }
 
-// Score band names. Descriptive of the model's own output, never a verdict
-// about the person — the same discipline as PERF_BANDS.
-function scoreBand(s){
-  return s>=85 ? 'every lever near its floor'
-       : s>=70 ? 'most levers working for you'
-       : s>=55 ? 'ahead of neutral'
-       : s>=45 ? 'about neutral'
-       : s>=30 ? 'a few levers are costing you'
-       : 'most levers have room';
+
+/* ---------- score v2 · phase 1 · the score as the hero -------------------
+   HEBE_SCORE_V2.md §2. Owner decision 22 Sept 2026: the score is the main
+   feature. It takes the hero slot and the HEBE age moves directly beneath it
+   as the explanation — the age is NOT removed, and it keeps its own element
+   ids, its count-up and its trend badge.
+
+   Points are the score's own unit (years × 8.33, from published coefficients),
+   never an awarded currency. Handoff §5.5 was amended for exactly this reading:
+   nothing here is earned, accumulated or spent, and a missed day still costs
+   nothing. No streaks, no badges, no guilt-on-miss.
+   ------------------------------------------------------------------------ */
+
+// Bands as a table so the label and the next-band gradient can never disagree.
+const SCORE_BANDS = [
+  { min:85, k:'sb_floor'   },
+  { min:70, k:'sb_most'    },
+  { min:55, k:'sb_ahead'   },
+  { min:45, k:'sb_neutral' },
+  { min:30, k:'sb_few'     },
+  { min:0,  k:'sb_room'    }
+];
+function scoreBandRow(s){ return SCORE_BANDS.find(b=> s>=b.min) || SCORE_BANDS[SCORE_BANDS.length-1]; }
+// Descriptive of the model's own output, never a verdict about the person.
+function scoreBand(s){ return t(scoreBandRow(s).k); }
+// Goal gradient. Hidden in the top band — "every lever near its floor" is the
+// ceiling by construction, so there is nothing honest to point at above it.
+function scoreNextBand(s){
+  const i = SCORE_BANDS.indexOf(scoreBandRow(s));
+  if(i<=0) return null;
+  const up = SCORE_BANDS[i-1];
+  return { label: t(up.k), gap: Math.max(0, up.min - s) };
 }
 
-// Compact chip for the Home hero. Sits BESIDE the age, never above it — the age
-// is the anchor (D1). Taps through to the full panel on Reports.
+// Weekly movement for the hero. The 30-day figure (scoreMovement) still drives
+// the Reports panel; this is the same rescale over 7 days.
+const SCORE_WEEK_DAYS = 7;
+function scoreMovementWeek(date){
+  const now = scoreAt(date);
+  if(!now) return null;
+  const back = new Date(date+'T12:00:00'); back.setDate(back.getDate()-SCORE_WEEK_DAYS);
+  const stPrev = windowStats(dstr(back), 21);
+  if(!stPrev || stPrev.n < SCORE_MATURE_DAYS) return { ready:false };
+  const prev = computeScore(ageAdjustments(stPrev).total);
+  return { ready:true, prev, delta: now.score - prev };
+}
+
+// Which lever moved most between two decompositions — used to attribute the
+// check-in reveal to something the user actually did.
+function scoreTopMover(prevParts, nowParts){
+  if(!prevParts || !nowParts) return null;
+  const prev = {}; prevParts.forEach(([n,v])=>{ prev[n]=v; });
+  let best=null, bestAbs=0;
+  nowParts.forEach(([n,v])=>{
+    const d = Math.abs(v - (prev[n]||0));
+    if(d > bestAbs){ bestAbs=d; best=n; }
+  });
+  return bestAbs > 0.005 ? best : null;
+}
+
+// Set by applyCheckin, consumed once by homeCharts. The reveal is the moment
+// the number answers back, so it animates from yesterday's value rather than
+// from the generic count-up start.
+let scoreReveal = null;
+
+// The age line beneath the score. Shared by the renderer and the count-up so
+// the two can never disagree mid-animation.
+function ageDeltaText(v, chrono){
+  return v<=chrono ? t('sc_younger',(chrono-v).toFixed(2)) : t('sc_older',(v-chrono).toFixed(2));
+}
+
+// ---- the hero itself ----
+function scoreHeroHTML(age, chrono, ageBadge){
+  const s = scoreAt(S.date);
+  if(!s || s.score==null) return '';
+  const v = s.score, nb = scoreNextBand(v), wk = scoreMovementWeek(S.date);
+  let h = '<div class="sub">'+t('sc_yourScore')+'</div>'
+    + '<div class="scorehero">'
+    +   '<span class="hero-num" id="scoreHero">'+v.toFixed(1)+'</span>'
+    +   '<span class="hm">/100</span>'
+    +   (wk && wk.ready
+        ? '<span class="badge '+(wk.delta>=-0.05?'teal':'gray')+'">'
+          + (wk.delta>=-0.05?ICONS.up:ICONS.down)+' '+(wk.delta>=0?'+':'')+wk.delta.toFixed(1)+' '+t('sc_thisWeek')+'</span>'
+        : '<span class="badge gray">'+t('sc_weekPending')+'</span>')
+    + '</div>';
+  h += '<div class="scoreband">'+esc(scoreBand(v))
+    + (nb ? '<span class="sub2"> · '+t('sc_toNext', nb.gap.toFixed(1), nb.label)+'</span>' : '')
+    + '</div>';
+  if(scoreReveal){
+    const dl = scoreReveal.to - scoreReveal.from;
+    const steady = Math.abs(dl) < 0.1;
+    h += '<div class="scorereveal '+(steady?'flat':dl>0?'up':'down')+'" id="scoreRevealBox">'
+      + (steady ? t('sc_holding')
+                : t('sc_todayDelta', (dl>0?'+':'')+dl.toFixed(1)) + (scoreReveal.lever? ' · '+esc(scoreReveal.lever):''))
+      + '</div>';
+  }
+  // The age, directly beneath, as the explanation. Same ids as before.
+  h += '<div class="scoreage">'+t('sc_hebeAge')+' <b id="ageNum">'+age.toFixed(2)+'</b> '
+    + '<span class="sub" id="ageDelta" data-chrono="'+chrono+'">'+ageDeltaText(age, chrono)+'</span> '
+    + '<span class="sub2">'+t('sc_chrono', chrono.toFixed(2))+'</span> '
+    + ageBadge
+    + '</div>';
+  return h;
+}
+
+// Locked state. Under the gate no score number appears anywhere — the hero is
+// the age exactly as it was, plus the line that makes the lock a reason to log.
+function scoreUnlockHTML(nConf){
+  const left = Math.max(1, SCORE_MATURE_DAYS - nConf);
+  return '<div class="scoreunlock">'+t(left===1?'sc_unlock1':'sc_unlock', left)
+    + '<span class="sub2"> · '+t('sc_unlockWhy')+'</span></div>';
+}
+
+// Lever contributions in points, collapsed. The full panel stays on Reports.
+function scoreLeversHomeHTML(){
+  if(!scoreReady()) return '';
+  const s = scoreAt(S.date);
+  if(!s || s.score==null) return '';
+  const dec = scoreParts(s.parts, s.adjustment);
+  const span = Math.max(1, ...dec.rows.map(r=>Math.abs(r.pts)));
+  let h = '<details class="reveal"><summary>'+t('sc_whatsMoving')
+    + '<span class="sub2"> · '+t('sc_inPoints')+'</span></summary><div class="scorelevers">';
+  dec.rows.forEach(r=>{
+    const pos = r.pts>0.01, neg = r.pts<-0.01;
+    h += '<div class="srow"><span class="sn">'+esc(r.name)+'</span>'
+      + '<span class="sb"><i class="'+(pos?'pos':neg?'neg':'zero')+'" style="width:'+(Math.abs(r.pts)/span*50).toFixed(1)+'%;'+(pos?'left:50%':'right:50%')+'"></i><u></u></span>'
+      + '<span class="sp '+(pos?'pos':neg?'neg':'zero')+'">'+(pos?'+':'')+r.pts.toFixed(1)+'</span></div>';
+  });
+  h += '</div><div class="sub scorefoot">'+t('sc_leverFoot')+'</div></details>';
+  return h;
+}
+
+
+// Compact chip form of the score. Was the Home surface under D1; superseded on
+// 22 Sept when the score took the hero slot (HEBE_SCORE_V2.md §2.1). Retained as
+// the compact representation for surfaces that are not the hero.
 function scoreChipHTML(){
   if(!scoreReady()) return '';
   const s = scoreAt(S.date);

@@ -8,3 +8,7 @@ graphify_src/
 .claude/
 data/
 Claude outputs/
+
+# local test fixtures (contain real health data - never commit)
+_fixture.json
+_baseline.html
