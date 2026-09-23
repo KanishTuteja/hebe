@@ -175,6 +175,41 @@ nav.bottom{display:none}
 .spin{display:inline-block;animation:spin 1s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 
+/* ---- body map ---- */
+.bodymap .bm-sys{display:flex;flex-wrap:wrap;gap:6px;margin-top:11px}
+.bm-syschip.locked{opacity:.78}
+.bm-wrap{display:grid;grid-template-columns:minmax(140px,210px) 1fr;gap:16px;margin-top:13px;align-items:start}
+.bm-figure{position:relative}
+#bmSvg{width:100%;max-width:168px;height:auto;display:block;margin:0 auto}
+.bm-sil path{fill:var(--card2);stroke:var(--line);stroke-width:1;transition:fill .35s ease,fill-opacity .35s ease}
+.bm-r{stroke:transparent;stroke-width:0;cursor:pointer;transition:fill-opacity .35s ease,fill .35s ease,stroke .15s,stroke-width .15s}
+.bm-r:hover,.bm-r.sel{stroke:var(--text2);stroke-width:1.6}
+.bm-view{display:flex;gap:6px;justify-content:center;margin-top:8px}
+.bm-side{min-width:0;display:flex;flex-direction:column;gap:11px}
+.bm-blurb{font-size:12.5px;line-height:1.5;color:var(--text2)}
+.bm-legend{display:flex;flex-wrap:wrap;gap:12px;font-size:11px;color:var(--text2)}
+.bm-legend span{display:flex;align-items:center;gap:5px}
+.bm-legend i{width:11px;height:11px;border-radius:3px;display:inline-block}
+.bm-inspect{background:var(--card2);border-radius:10px;padding:11px 13px;min-height:76px}
+.bm-inspect .t{font-size:13px;font-weight:700;display:flex;align-items:center;gap:7px}
+.bm-inspect .tier{font-size:10px;font-weight:700;color:var(--text3);border:1px solid var(--line2);border-radius:5px;padding:1px 5px}
+.bm-inspect .bar{height:5px;border-radius:3px;background:var(--line);margin:8px 0 7px;overflow:hidden}
+.bm-inspect .bar i{display:block;height:100%;background:var(--teal);transition:width .35s ease}
+.bm-inspect .b{font-size:11.5px;line-height:1.5;color:var(--text2)}
+.bm-inspect .b.dim{color:var(--text3)}
+.bm-inspect .p{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.bm-inspect .p span{font-size:10.5px;background:var(--card);border:1px solid var(--line);border-radius:6px;padding:2px 7px;color:var(--text2)}
+.bm-gaps .t{font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;font-weight:700;color:var(--amber-dk)}
+.bm-gaps .b{font-size:12px;line-height:1.5;color:var(--text2);margin-top:3px}
+.bm-lock{background:var(--amber-bg);border:1px solid var(--line2);border-radius:10px;padding:12px 14px}
+.bm-lock .t{font-size:12.5px;font-weight:700;color:var(--amber-dk)}
+.bm-lock .b{font-size:12px;line-height:1.55;color:var(--text2);margin-top:5px}
+.bm-time{display:flex;align-items:center;gap:11px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.bm-time input[type=range]{flex:1;min-width:0;accent-color:var(--teal)}
+.bm-date{font-size:11.5px;color:var(--text2);font-variant-numeric:tabular-nums;min-width:98px;text-align:right}
+.bm-foot{font-size:10.5px;line-height:1.45;margin-top:8px}
+@media (max-width:880px){.bm-wrap{grid-template-columns:1fr}#bmSvg{max-width:148px}.bm-date{min-width:76px}}
+
 /* ---- nutrition merge ---- */
 .logrow{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
 .logrow input[type=text]{flex:1;min-width:150px}
@@ -2529,9 +2564,394 @@ async function doFoodSearch(){
   }
 }
 
+
+/* =======================================================================
+   BODY MAP — the layered body surface
+   -----------------------------------------------------------------------
+   Five separated layers, so this can grow without the render code changing:
+
+     1 · ANATOMY REGISTRY   BODY_REGIONS  — what can be drawn (pure geometry)
+     2 · STIMULUS MAP       WORKOUT_MAP   — what a logged session touches
+     3 · SYSTEM REGISTRY    BODY_SYSTEMS  — the layers, and how each is sourced
+     4 · SIGNAL LAYER       bodyState()   — pure read of S.days -> region values
+     5 · PAINT + RENDER     bodyPaint / bodySvg / bodyRepaint
+
+   Adding a muscle = one row in BODY_REGIONS. Adding a whole system = one row
+   in BODY_SYSTEMS with a signal function. Neither touches the renderer.
+
+   THREE RULES THIS FILE IS BUILT AROUND (handoff §4, §5, §6):
+
+   a) IT NEVER WRITES. Every function here is a pure read of S.days. A side
+      feature that touches a day doc bumps updatedAt, which marks an unlogged
+      day as logged and biases the HEBE-age window. The body map has no write
+      path at all — not even a debounced one.
+
+   b) IT MAPS THE LOG, NOT THE BODY. A region's value is "how much logged work
+      landed here", never inferred tissue state. The organ system is present
+      and LOCKED on purpose: behaviour cannot infer ALT or HbA1c, and the lock
+      is the motivating surface, not a missing feature.
+
+   c) THE INTERACTION IS REAL-TIME; THE DATA CADENCE IS NOT. Scrub, hover,
+      layer switch and replay all recompute instantly. But muscle and fat move
+      over weeks, so the default window is 7 days and the replay steps in days
+      across a 60-day record. Nothing here claims your body changed today.
+   ======================================================================= */
+
+// --- 1 · ANATOMY REGISTRY -----------------------------------------------
+// viewBox is 0 0 200 430, symmetric about x=100. `bx` is a rounded rect — most
+// limbs genuinely are one — and torso pieces carry their own path.
+function bx(x,y,w,h,r){
+  return 'M'+(x+r)+' '+y+' H'+(x+w-r)+' Q'+(x+w)+' '+y+' '+(x+w)+' '+(y+r)
+       + ' V'+(y+h-r)+' Q'+(x+w)+' '+(y+h)+' '+(x+w-r)+' '+(y+h)
+       + ' H'+(x+r)+' Q'+x+' '+(y+h)+' '+x+' '+(y+h-r)
+       + ' V'+(y+r)+' Q'+x+' '+y+' '+(x+r)+' '+y+' Z';
+}
+// The neutral figure the regions are painted onto.
+const BODY_SILHOUETTE = [
+  'M100 12 a19 19 0 1 0 0.1 0 Z',                  // head
+  bx(91,44,18,22,8),                                // neck
+  'M58 70 Q100 56 142 70 L134 152 L130 200 Q100 210 70 200 L66 152 Z', // torso
+  bx(43,68,27,124,13), bx(130,68,27,124,13),        // arms
+  bx(67,196,29,150,14), bx(104,196,29,150,14)       // legs
+];
+const BODY_REGIONS = [
+  // id, label, view, group, path
+  { id:'neck',      label:'Neck & traps',   view:'anterior',  d:bx(90,50,20,16,7) },
+  { id:'deltF_l',   label:'Front delts',    view:'anterior',  d:bx(46,69,24,31,11), pair:'delt' },
+  { id:'deltF_r',   label:'Front delts',    view:'anterior',  d:bx(130,69,24,31,11), pair:'delt' },
+  { id:'chest_l',   label:'Chest',          view:'anterior',  d:'M78 76 Q88 72 97 76 V104 Q86 108 76 102 Q72 88 78 76 Z', pair:'chest' },
+  { id:'chest_r',   label:'Chest',          view:'anterior',  d:'M122 76 Q112 72 103 76 V104 Q114 108 124 102 Q128 88 122 76 Z', pair:'chest' },
+  { id:'bicep_l',   label:'Biceps',         view:'anterior',  d:bx(45,103,23,36,10), pair:'bicep' },
+  { id:'bicep_r',   label:'Biceps',         view:'anterior',  d:bx(132,103,23,36,10), pair:'bicep' },
+  { id:'fore_l',    label:'Forearms',       view:'anterior',  d:bx(43,141,19,44,8), pair:'forearm' },
+  { id:'fore_r',    label:'Forearms',       view:'anterior',  d:bx(138,141,19,44,8), pair:'forearm' },
+  { id:'abs',       label:'Abdominals',     view:'anterior',  d:bx(87,110,26,54,9) },
+  { id:'oblique_l', label:'Obliques',       view:'anterior',  d:'M79 112 Q85 110 85 116 V162 Q77 156 76 140 Z', pair:'oblique' },
+  { id:'oblique_r', label:'Obliques',       view:'anterior',  d:'M121 112 Q115 110 115 116 V162 Q123 156 124 140 Z', pair:'oblique' },
+  { id:'quad_l',    label:'Quadriceps',     view:'anterior',  d:bx(70,200,26,66,12), pair:'quad' },
+  { id:'quad_r',    label:'Quadriceps',     view:'anterior',  d:bx(104,200,26,66,12), pair:'quad' },
+  { id:'shin_l',    label:'Shins & ankles', view:'anterior',  d:bx(72,276,21,64,9), pair:'shin' },
+  { id:'shin_r',    label:'Shins & ankles', view:'anterior',  d:bx(107,276,21,64,9), pair:'shin' },
+
+  { id:'traps',     label:'Trapezius',      view:'posterior', d:'M80 62 H120 Q130 76 129 88 Q100 82 71 88 Q70 76 80 62 Z' },
+  { id:'deltB_l',   label:'Rear delts',     view:'posterior', d:bx(46,69,24,31,11), pair:'delt' },
+  { id:'deltB_r',   label:'Rear delts',     view:'posterior', d:bx(130,69,24,31,11), pair:'delt' },
+  { id:'lat_l',     label:'Lats',           view:'posterior', d:'M71 90 Q84 88 95 92 V134 Q78 130 72 118 Z', pair:'lat' },
+  { id:'lat_r',     label:'Lats',           view:'posterior', d:'M129 90 Q116 88 105 92 V134 Q122 130 128 118 Z', pair:'lat' },
+  { id:'tri_l',     label:'Triceps',        view:'posterior', d:bx(45,103,23,36,10), pair:'tricep' },
+  { id:'tri_r',     label:'Triceps',        view:'posterior', d:bx(132,103,23,36,10), pair:'tricep' },
+  { id:'foreB_l',   label:'Forearms',       view:'posterior', d:bx(43,141,19,44,8), pair:'forearm' },
+  { id:'foreB_r',   label:'Forearms',       view:'posterior', d:bx(138,141,19,44,8), pair:'forearm' },
+  { id:'lowback',   label:'Lower back',     view:'posterior', d:bx(86,136,28,32,7) },
+  { id:'glute_l',   label:'Glutes',         view:'posterior', d:bx(70,174,28,32,12), pair:'glute' },
+  { id:'glute_r',   label:'Glutes',         view:'posterior', d:bx(102,174,28,32,12), pair:'glute' },
+  { id:'ham_l',     label:'Hamstrings',     view:'posterior', d:bx(70,212,26,56,12), pair:'ham' },
+  { id:'ham_r',     label:'Hamstrings',     view:'posterior', d:bx(104,212,26,56,12), pair:'ham' },
+  { id:'calf_l',    label:'Calves',         view:'posterior', d:bx(72,278,21,54,9), pair:'calf' },
+  { id:'calf_r',    label:'Calves',         view:'posterior', d:bx(107,278,21,54,9), pair:'calf' },
+
+  // cardio + organ regions share the anterior figure
+  { id:'heart',     label:'Heart',          view:'anterior',  d:bx(92,82,20,22,9), organ:true },
+  { id:'lung_l',    label:'Lungs',          view:'anterior',  d:bx(76,72,14,30,7), organ:true, pair:'lung' },
+  { id:'lung_r',    label:'Lungs',          view:'anterior',  d:bx(110,72,14,30,7), organ:true, pair:'lung' },
+  { id:'liver',     label:'Liver',          view:'anterior',  d:'M103 112 H126 Q130 126 118 132 H103 Z', organ:true },
+  { id:'kidney_l',  label:'Kidneys',        view:'anterior',  d:bx(80,122,11,18,5), organ:true, pair:'kidney' },
+  { id:'kidney_r',  label:'Kidneys',        view:'anterior',  d:bx(109,122,11,18,5), organ:true, pair:'kidney' },
+  { id:'gut',       label:'Gut',            view:'anterior',  d:bx(85,138,30,26,8), organ:true },
+  { id:'brain',     label:'Brain & CNS',    view:'anterior',  d:'M100 17 a15 15 0 1 0 0.1 0 Z', organ:true }
+];
+const BODY_REGION = {}; BODY_REGIONS.forEach(r=>{ BODY_REGION[r.id]=r; });
+
+// --- 2 · STIMULUS MAP ----------------------------------------------------
+// What a logged session is credited with touching, and how strongly. HEBE only
+// records a coarse session type, so this is an explicit, inspectable assumption
+// — which is exactly why every region it produces is tier E. When real set/rep
+// logging arrives, this map is what gets replaced; nothing downstream changes.
+const WORKOUT_MAP = {
+  arms: { bicep:1, tricep:1, delt:.7, forearm:.55, chest:.45, lat:.4 },
+  core: { abs:1, oblique:.85, lowback:.6, glute:.3 },
+  ride: { quad:.85, calf:.6, glute:.55, ham:.45, shin:.3 },
+  walk: { calf:.5, quad:.35, ham:.3, glute:.3, shin:.25 }
+};
+// A region belongs to a stimulus group by its `pair`, or by its own id.
+function bodyGroupOf(r){ return r.pair || r.id; }
+
+// --- 3 · SYSTEM REGISTRY -------------------------------------------------
+// state: 'live'   — fully sourced from what you already log
+//        'partial'— sourced, but thin until more measurements exist
+//        'locked' — cannot be honestly derived from behaviour at all
+const BODY_SYSTEMS = [
+  { id:'muscle', label:'Muscle & training', state:'live', view:'both', tier:'E',
+    blurb:'Where your logged sessions actually landed, recency-weighted.',
+    legend:['no logged work','thin','covered'] },
+  { id:'cardio', label:'Cardiorespiratory', state:'partial', view:'anterior', tier:'E',
+    shows:['heart','lung_l','lung_r'],
+    blurb:'Aerobic volume against the WHO target, plus your resting-HR readings.',
+    legend:['no signal','below target','at target'] },
+  { id:'recovery', label:'Sleep & recovery', state:'partial', view:'anterior', tier:'E',
+    shows:['brain'], wash:true,
+    blurb:'Sleep duration and quality against AASM, carried across the window.',
+    legend:['poor','mixed','good'] },
+  { id:'organ', label:'Metabolic & organs', state:'locked', view:'anterior', tier:'M',
+    shows:['brain','heart','lung_l','lung_r','liver','kidney_l','kidney_r','gut'],
+    blurb:'Liver, kidneys, metabolic. Unlocks with a standard blood panel — ALT, AST, GGT, HbA1c, lipids. About $60 in Ontario, often covered.',
+    lockNote:'HEBE will not guess at these. Behaviour cannot infer them, and no app can. It will track them properly once they are real numbers.' }
+];
+const BODY_SYSTEM = {}; BODY_SYSTEMS.forEach(s=>{ BODY_SYSTEM[s.id]=s; });
+
+// --- 4 · SIGNAL LAYER ----------------------------------------------------
+// Recency weighting. A 3.5-day half-life over a 21-day read means yesterday's
+// session shows bright and three weeks ago is nearly gone. It is a DISPLAY
+// CONVENTION chosen so the map answers "what have I been hitting lately" — not
+// a claim about how fast tissue adapts. Stated in the UI, not hidden here.
+const BODY_HALFLIFE = 3.5;
+const BODY_WINDOW   = 21;
+const BODY_TRACK    = 60;   // how far back the scrubber can travel
+
+function bodyDecay(ageDays){ return Math.pow(0.5, ageDays / BODY_HALFLIFE); }
+// Pure read: the logged days at or before `date`, newest first, with their age.
+function bodyLoggedWindow(date, n){
+  const end = new Date(date+'T12:00:00');
+  const out = [];
+  for(let i=0;i<n;i++){
+    const dt = new Date(end); dt.setDate(dt.getDate()-i);
+    const k = dstr(dt), d = S.days[k];
+    if(d && d.updatedAt>0) out.push({ key:k, day:d, age:i });
+  }
+  return out;
+}
+function bodyClamp01(v){ return v<0?0:v>1?1:v; }
+
+// muscle — decayed stimulus per group, normalised against a "well covered"
+// reference of ~2 solid sessions inside one half-life.
+function bodySignalMuscle(date){
+  const win = bodyLoggedWindow(date, BODY_WINDOW);
+  const acc = {}, src = {};
+  win.forEach(({key,day,age})=>{
+    const m = day.metrics, w = bodyDecay(age);
+    const add = (map, units, label)=>{
+      if(units<=0) return;
+      Object.keys(map).forEach(g=>{
+        acc[g] = (acc[g]||0) + map[g]*units*w;
+        (src[g] = src[g]||[]).push({ key, label, units, w });
+      });
+    };
+    if(m.workoutDone && (m.workoutMin||0)>0){
+      const type = day.workoutType;
+      if(type && WORKOUT_MAP[type]) add(WORKOUT_MAP[type], (m.workoutMin||0)/45, type+' session, '+(m.workoutMin||0)+' min');
+    }
+    if((m.rideH||0)>0) add(WORKOUT_MAP.ride, m.rideH/1.0, (m.rideH).toFixed(1)+'h ride');
+  });
+  const REF = 2.0;
+  const out = {};
+  BODY_REGIONS.forEach(r=>{
+    if(r.organ) return;
+    const g = bodyGroupOf(r);
+    const raw = acc[g]||0;
+    const list = (src[g]||[]).sort((a,b)=>a.key<b.key?1:-1).slice(0,4);
+    out[r.id] = {
+      v: bodyClamp01(raw/REF), tier:'E',
+      note: raw<=0.001 ? 'No logged work reached this in '+BODY_WINDOW+' days.'
+                       : 'Inferred from your session type, not from what you actually lifted.',
+      parts: list.map(x=>shortDate(x.key)+' · '+x.label)
+    };
+  });
+  return out;
+}
+// cardio — aerobic minutes against the WHO 150 min/wk target, and resting HR.
+function bodySignalCardio(date){
+  const win = bodyLoggedWindow(date, 7);
+  let modMin = 0, rhrs = [];
+  win.forEach(({day})=>{
+    const m = day.metrics;
+    modMin += (m.rideH||0)*60 + ((m.workoutDone && m.workoutMin)||0)*0.5;
+    const r = (day.heart&&day.heart.rhr) || (day.wearable&&day.wearable.restingHR);
+    if(r) rhrs.push(r);
+  });
+  const volV = bodyClamp01(modMin/150);
+  const rhr  = rhrs.length ? rhrs.reduce((a,b)=>a+b,0)/rhrs.length : null;
+  // 48 bpm -> 1, 82 bpm -> 0. Same direction as the age engine's RHR lever.
+  const hrV  = rhr==null ? null : bodyClamp01((82-rhr)/34);
+  const out = {};
+  out.heart = { v: hrV==null ? 0 : hrV, tier: rhr==null?'E':'M',
+    note: rhr==null ? 'No resting-HR reading in 7 days — log one on this screen and this becomes measured.'
+                    : 'Mean resting HR '+Math.round(rhr)+' bpm across '+rhrs.length+' reading'+(rhrs.length>1?'s':'')+'.',
+    parts: rhrs.length ? ['resting HR '+Math.round(rhr)+' bpm'] : [] };
+  const lung = { v: volV, tier:'E',
+    note: Math.round(modMin)+' min moderate-equivalent in 7 days (WHO target 150).',
+    parts: ['aerobic volume '+Math.round(modMin)+'/150 min'] };
+  out.lung_l = lung; out.lung_r = Object.assign({}, lung);
+  return out;
+}
+// recovery — sleep hours and quality against AASM 7–9h, carried over the week.
+function bodySignalRecovery(date){
+  const win = bodyLoggedWindow(date, 7);
+  if(!win.length) return { brain:{ v:0, tier:'E', note:'Nothing logged in the last 7 days.', parts:[] } };
+  let sl=0, q=0, st=0;
+  win.forEach(({day})=>{ const m=day.metrics; sl+=m.sleepH; q+=m.sleepQ; st+=m.stress; });
+  const n = win.length, sleepH = sl/n, sleepQ = q/n, stress = st/n;
+  // distance from the 7–9h band, plus self-rated quality, minus stress load
+  const dur = bodyClamp01(1 - Math.max(0, sleepH<7 ? (7-sleepH)/3 : (sleepH-9)/3));
+  const v = bodyClamp01(dur*0.55 + (sleepQ/10)*0.30 + (1-stress/10)*0.15);
+  const note = sleepH.toFixed(1)+'h average, quality '+sleepQ.toFixed(1)+'/10, stress '+stress.toFixed(1)+'/10 across '+n+' logged day'+(n>1?'s':'')+'.';
+  return { brain:{ v, tier:'E', note, parts:['sleep '+sleepH.toFixed(1)+'h','quality '+sleepQ.toFixed(1)+'/10','stress '+stress.toFixed(1)+'/10'] } };
+}
+// Dispatch. Every system resolves through here, so a new one is one function.
+function bodyState(systemId, date){
+  const sys = BODY_SYSTEM[systemId] || BODY_SYSTEMS[0];
+  if(sys.state==='locked') return { sys, regions:{}, locked:true };
+  const regions = systemId==='cardio' ? bodySignalCardio(date)
+                : systemId==='recovery' ? bodySignalRecovery(date)
+                : bodySignalMuscle(date);
+  return { sys, regions, locked:false };
+}
+
+// --- 5 · PAINT -----------------------------------------------------------
+// value -> colour token. Four steps, not a continuous ramp: a gradient invites
+// reading precision that a session-type inference does not have.
+function bodyPaint(v){
+  if(v==null || v<0.02) return { fill:'var(--line2)', op:.30, band:'none' };
+  if(v<0.30)            return { fill:'var(--amber)',  op:.32, band:'thin' };
+  if(v<0.65)            return { fill:'var(--teal)',   op:.45, band:'covered' };
+  return                       { fill:'var(--teal)',   op:.88, band:'strong' };
+}
+
+// --- 6 · RENDER + INTERACTION -------------------------------------------
+let bodySys = 'muscle', bodyView = 'anterior', bodyOffset = 0, bodyPlayTimer = null, bodyPick = null;
+
+function bodyMapDate(){
+  const d = new Date(S.date+'T12:00:00'); d.setDate(d.getDate()-bodyOffset); return dstr(d);
+}
+function bodySvg(){
+  const sys = BODY_SYSTEM[bodySys];
+  const view = sys.view==='both' ? bodyView : sys.view;
+  let h = '<svg id="bmSvg" viewBox="0 0 200 430" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Body map">';
+  h += '<g class="bm-sil">'+BODY_SILHOUETTE.map(d=>'<path d="'+d+'"/>').join('')+'</g>';
+  h += '<g class="bm-regions">';
+  BODY_REGIONS.forEach(r=>{
+    if(sys.shows){ if(sys.shows.indexOf(r.id)<0) return; }
+    else if(r.organ || r.view !== view) return;
+    h += '<path class="bm-r" id="bm_'+r.id+'" data-bregion="'+r.id+'" d="'+r.d+'"><title>'+esc(r.label)+'</title></path>';
+  });
+  h += '</g></svg>';
+  return h;
+}
+function bodyMapHTML(){
+  const sys = BODY_SYSTEM[bodySys];
+  let h = '<div class="card mt fade bodymap" id="bodyMapCard">';
+  h += '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">'
+    + '<h3>Body map</h3>'
+    + '<span class="badge gray">'+(sys.state==='locked'?'locked':'tier '+sys.tier)+'</span></div>';
+  h += '<div class="sub" style="margin-top:4px">A picture of your logged record, not a reading off your body.</div>';
+
+  // system switcher — the "layers"
+  h += '<div class="bm-sys">'+BODY_SYSTEMS.map(s=>
+        '<span class="chip bm-syschip '+(s.id===bodySys?'on':'')+(s.state==='locked'?' locked':'')+'" data-bsys="'+s.id+'">'
+        + (s.state==='locked'?'&#128274; ':'')+esc(s.label)+'</span>').join('')+'</div>';
+
+  h += '<div class="bm-wrap">';
+  h += '<div class="bm-figure">'+bodySvg();
+  if(sys.view==='both'){
+    h += '<div class="bm-view">'
+      + '<span class="chip '+(bodyView==='anterior'?'on':'')+'" data-bview="anterior">Front</span>'
+      + '<span class="chip '+(bodyView==='posterior'?'on':'')+'" data-bview="posterior">Back</span></div>';
+  }
+  h += '</div>';
+  h += '<div class="bm-side">';
+  h += '<div class="bm-blurb">'+esc(sys.blurb)+'</div>';
+  if(sys.state==='locked'){
+    h += '<div class="bm-lock"><div class="t">&#128274; Locked</div><div class="b">'+esc(sys.lockNote)+'</div></div>';
+  } else {
+    h += '<div class="bm-legend">'
+      + '<span><i style="background:var(--line2);opacity:.5"></i>'+esc(sys.legend[0])+'</span>'
+      + '<span><i style="background:var(--amber);opacity:.5"></i>'+esc(sys.legend[1])+'</span>'
+      + '<span><i style="background:var(--teal)"></i>'+esc(sys.legend[2])+'</span></div>';
+    h += '<div id="bmInspect" class="bm-inspect"></div>';
+    h += '<div id="bmGaps" class="bm-gaps"></div>';
+  }
+  h += '</div></div>';
+
+  // time scrub — the same bodyState() at a different date, so replay is free
+  if(sys.state!=='locked'){
+    h += '<div class="bm-time">'
+      + '<button class="btn" id="bmPlay" style="font-size:12px;padding:6px 12px">&#9654; Replay</button>'
+      + '<input type="range" id="bmScrub" min="0" max="'+BODY_TRACK+'" step="1" value="'+(BODY_TRACK-bodyOffset)+'">'
+      + '<span class="bm-date" id="bmDate"></span></div>';
+    h += '<div class="sub bm-foot">Recency-weighted over '+BODY_WINDOW+' days, half-life '+BODY_HALFLIFE+' days — a display convention so recent work reads brighter, not a claim about how fast tissue adapts. Muscle and fat move over weeks; nothing here changes because of one day.</div>';
+  }
+  h += '</div>';
+  return h;
+}
+// Repaint only — no re-render, so scrubbing and replay stay instant.
+function bodyRepaint(){
+  const card = document.getElementById('bodyMapCard'); if(!card) return;
+  const date = bodyMapDate();
+  const st = bodyState(bodySys, date);
+  const dEl = document.getElementById('bmDate');
+  if(dEl) dEl.textContent = (bodyOffset===0?'today':shortDate(date)) + (bodyOffset?' · '+bodyOffset+'d ago':'');
+  card.querySelectorAll('.bm-r').forEach(p=>{
+    const id = p.dataset.bregion, s = st.regions[id];
+    const pt = st.locked ? { fill:'var(--line2)', op:.22 } : bodyPaint(s?s.v:0);
+    p.style.fill = pt.fill; p.style.fillOpacity = pt.op;
+    p.classList.toggle('sel', bodyPick===id);
+  });
+  // Sleep is systemic, not a body part — so that layer tints the whole figure
+  // rather than pretending recovery lives in one organ.
+  const washKey = st.sys.wash ? Object.keys(st.regions)[0] : null;
+  const wash = washKey ? bodyPaint(st.regions[washKey].v) : null;
+  card.querySelectorAll('.bm-sil path').forEach(p=>{
+    p.style.fill = wash ? wash.fill : '';
+    p.style.fillOpacity = wash ? Math.max(.12, wash.op*0.5) : '';
+  });
+  const ins = document.getElementById('bmInspect');
+  if(ins){
+    const s = bodyPick && st.regions[bodyPick];
+    if(s){
+      const r = BODY_REGION[bodyPick];
+      ins.innerHTML = '<div class="t">'+esc(r.label)+' <span class="tier">'+s.tier+'</span></div>'
+        + '<div class="bar"><i style="width:'+Math.round(s.v*100)+'%"></i></div>'
+        + '<div class="b">'+esc(s.note)+'</div>'
+        + (s.parts.length? '<div class="p">'+s.parts.map(x=>'<span>'+esc(x)+'</span>').join('')+'</div>':'');
+    } else {
+      ins.innerHTML = '<div class="b dim">Tap a region to see what fed it.</div>';
+    }
+  }
+  const gaps = document.getElementById('bmGaps');
+  if(gaps && !st.locked){
+    // The point of the map: name what the log never reaches.
+    const cold = Object.keys(st.regions)
+      .filter(id=>st.regions[id].v<0.02 && BODY_REGION[id] && !BODY_REGION[id].organ)
+      .map(id=>BODY_REGION[id].label);
+    const uniq = cold.filter((x,i)=>cold.indexOf(x)===i);
+    gaps.innerHTML = uniq.length
+      ? '<div class="t">Nothing logged reached</div><div class="b">'+esc(uniq.join(' · '))+'</div>'
+      : '';
+  }
+}
+function bodyMapMount(){
+  const card = document.getElementById('bodyMapCard'); if(!card) return;
+  card.querySelectorAll('.bm-r').forEach(p=>{
+    p.addEventListener('mouseenter', ()=>{ bodyPick = p.dataset.bregion; bodyRepaint(); });
+  });
+  bodyRepaint();
+}
+function bodyPlayToggle(){
+  const btn = document.getElementById('bmPlay');
+  if(bodyPlayTimer){ clearInterval(bodyPlayTimer); bodyPlayTimer=null; if(btn) btn.innerHTML='&#9654; Replay'; return; }
+  bodyOffset = BODY_TRACK;
+  if(btn) btn.innerHTML='&#9632; Stop';
+  bodyPlayTimer = setInterval(()=>{
+    bodyOffset -= 1;
+    if(bodyOffset<=0){ bodyOffset=0; clearInterval(bodyPlayTimer); bodyPlayTimer=null; if(btn) btn.innerHTML='&#9654; Replay'; }
+    const sc = document.getElementById('bmScrub'); if(sc) sc.value = BODY_TRACK-bodyOffset;
+    bodyRepaint();
+  }, 90);
+}
+
 function renderBody(){
   const d = ensureDay(S.date);
   let h = topline();
+  h += bodyMapHTML();
   h += '<div class="grid2eq fade">';
   h += '<div class="card"><h3>Heart</h3><div class="sub">manual now — Whoop/Apple Health makes this automatic later</div>'
     + '<div class="frow mt"><div><label class="f">Resting HR today (bpm)</label><input type="number" id="rhrIn" value="'+(d.heart.rhr||'')+'" placeholder="e.g. 54"></div>'
@@ -2744,11 +3164,12 @@ function render(){
   tt.className='nav-item'; tt.innerHTML = (S.settings.theme==='dark'?ICONS.sun+' Light mode':ICONS.moon+' Dark mode');
   document.getElementById('bottomNav').innerHTML = PAGES.concat([['setup','Setup','setup']]).map(([id,label,ic])=>'<button data-page="'+id+'" class="'+(S.page===id?'active':'')+'">'+ICONS[ic]+'<span>'+label+'</span></button>').join('');
   destroyCharts();
+  if(bodyPlayTimer){ clearInterval(bodyPlayTimer); bodyPlayTimer=null; }
   const m = document.getElementById('main');
   if(S.page==='home'){ m.innerHTML=renderHome(); homeCharts(); }
   else if(S.page==='perf'){ m.innerHTML=renderPerf(); perfCharts(); }
   else if(S.page==='fuel'){ m.innerHTML=renderFuel(); fuelCharts(); }
-  else if(S.page==='body'){ m.innerHTML=renderBody(); bodyCharts(); }
+  else if(S.page==='body'){ m.innerHTML=renderBody(); bodyCharts(); bodyMapMount(); }
   else if(S.page==='reports'){ m.innerHTML=renderReports(); reportCharts(); }
   else { m.innerHTML=renderSetup(); }
 }
@@ -2788,11 +3209,18 @@ document.addEventListener('click', e=>{
     // shapes are exclusive. Two palms of salmon is one entry; the rice beside
     // it is a separate cupped-hand entry.
     const n = portionSel[k]||0; resetPortions(); portionSel[k]=n+1; render(); return; }
+  const bsys = e.target.closest('[data-bsys]');
+  if(bsys){ if(BODY_SYSTEM[bsys.dataset.bsys]){ bodySys=bsys.dataset.bsys; bodyPick=null; bodyOffset=0; render(); } return; }
+  const bvw = e.target.closest('[data-bview]');
+  if(bvw){ bodyView = bvw.dataset.bview; bodyPick=null; render(); return; }
+  const brg = e.target.closest('[data-bregion]');
+  if(brg){ bodyPick = brg.dataset.bregion; bodyRepaint(); return; }
   if(e.target.id==='modalBg' && !onboardingOpen) hideModal();
   const t = e.target.closest('button, label'); if(!t) return;
   switch(t.id){
     case 'obDone': completeOnboarding(); break;
     case 'obSkip': if(!confirm('Skip the walkthrough? HEBE will treat this device as already set up, and you can import a backup from Setup. To get the walkthrough back later: Setup, then Reset & re-onboard.')) break; onboardingOpen=false; S.onboarded=true; localStorage.setItem('hebe_onboarded','1'); ob=null; S.page='setup'; hideModal(); render(); break;
+    case 'bmPlay': bodyPlayToggle(); break;
     case 'obStart': if(ob){ ob.step=1; obRender(); } break;
     case 'obNext': if(ob) obNext(); break;
     case 'obBack': if(ob) obGo(ob.step-1); break;
@@ -2839,6 +3267,7 @@ document.addEventListener('click', e=>{
 });
 document.addEventListener('input', e=>{
   const el = e.target;
+  if(el.id==='bmScrub'){ bodyOffset = BODY_TRACK - (+el.value); bodyRepaint(); return; }
   if(el.dataset&&el.dataset.tpl){ S.templates[el.dataset.tpl][el.dataset.fld]=+el.value; clearTimeout(saveTimer); saveTimer=setTimeout(persist,400); return; }
   switch(el.id){
     case 'setName': S.settings.name=el.value; persist(); pushSettings(); break;
