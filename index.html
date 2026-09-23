@@ -1066,7 +1066,7 @@ en:{
  ob_t2h:"These are estimates, not measurements.", ob_t2:"HEBE applies published research to what you log. It’s an informed estimate of how your habits are tracking — not a reading taken off your body. Where we’re uncertain, we show it.",
  ob_t3h:"The number needs about two weeks to mean anything.", ob_t3:"It’ll move around before then while it finds your baseline. That’s it calibrating, not you declining.",
  ob_t4h:"Your data is yours.", ob_t4:"It stays on your device unless you turn on sync. We never sell it, never share it, and you can export the whole thing — readable, forever — at any time.",
- ob_start:"Start", ob_noAccount:"No account needed. About three minutes.", ob_skip:"I already use HEBE — take me to sign in / import",
+ ob_start:"Start", ob_noAccount:"No account needed. About three minutes.", ob_skip:"I already use HEBE — take me to import my data",
  ob_back:"Back", ob_next:"Continue", ob_edit:"edit",
  ob_s1h:"The minimum", ob_s1sub:"Three things, and that’s the whole form. Everything else comes up later, in context.",
  ob_name:"First name", ob_dob:"Birth date", ob_sex:"Biological sex", ob_sexNa:"Prefer not to say", ob_sexF:"Female", ob_sexM:"Male",
@@ -2743,7 +2743,7 @@ document.addEventListener('click', e=>{
   const t = e.target.closest('button, label'); if(!t) return;
   switch(t.id){
     case 'obDone': completeOnboarding(); break;
-    case 'obSkip': onboardingOpen=false; S.onboarded=true; localStorage.setItem('hebe_onboarded','1'); ob=null; S.page='setup'; hideModal(); render(); break;
+    case 'obSkip': if(!confirm('Skip the walkthrough? HEBE will treat this device as already set up, and you can import a backup from Setup. To get the walkthrough back later: Setup, then Reset & re-onboard.')) break; onboardingOpen=false; S.onboarded=true; localStorage.setItem('hebe_onboarded','1'); ob=null; S.page='setup'; hideModal(); render(); break;
     case 'obStart': if(ob){ ob.step=1; obRender(); } break;
     case 'obNext': if(ob) obNext(); break;
     case 'obBack': if(ob) obGo(ob.step-1); break;
