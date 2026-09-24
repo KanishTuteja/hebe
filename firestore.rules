@@ -1,0 +1,189 @@
+rules_version = '2';
+// HEBE — Firestore security rules. Circles Season 0.
+// Design: per-circle cards at circles/{cid}/cards/{uid}. Nothing about a person is
+// readable outside a circle they are currently a member of, and raw health data
+// (users/{uid}/**) is readable by its owner only, with no exception anywhere below.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- helpers ----------
+    function signedIn()           { return request.auth != null; }
+    function isSelf(uid)          { return signedIn() && request.auth.uid == uid; }
+    function circlePath(cid)      { return /databases/$(database)/documents/circles/$(cid); }
+    function memberPath(cid, uid) { return /databases/$(database)/documents/circles/$(cid)/members/$(uid); }
+    function cardPath(cid, uid)   { return /databases/$(database)/documents/circles/$(cid)/cards/$(uid); }
+    function memberOf(cid)        { return signedIn() && exists(memberPath(cid, request.auth.uid)); }
+    function creatorOf(cid)       { return get(circlePath(cid)).data.createdBy == request.auth.uid; }
+    function isDate(s)            { return s is string && s.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$'); }
+    function okName(s)            { return s is string && s.size() > 0 && s.size() <= 60; }
+    function okCode(s)            { return s is string && s.size() >= 16 && s.size() <= 64; }
+    function okDisplay(s)         { return s is string && s.size() > 0 && s.size() <= 40; }
+    function changed()            { return request.resource.data.diff(resource.data).affectedKeys(); }
+
+    // ---------- RAW HEALTH DATA + OWN SETTINGS — OWNER ONLY, NO EXCEPTIONS ----------
+    // users/{uid}          settings, templates, protocols, meals, plan, circle ids
+    // users/{uid}/days/*   the full day objects
+    // This keeps HEBE's existing sync working exactly as before. Nothing below widens it.
+    match /users/{uid} {
+      allow read, write: if isSelf(uid);
+      match /{document=**} {
+        allow read, write: if isSelf(uid);
+      }
+    }
+
+    // ---------- circles ----------
+    match /circles/{cid} {
+      allow read: if memberOf(cid);
+
+      // Created in one batch with the creator's member row and the invite-code doc.
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(
+             ['name','createdBy','createdAt','inviteCode','seasonStart','seasonEnd','memberCount'])
+        && request.resource.data.createdBy == request.auth.uid
+        && okName(request.resource.data.name)
+        && okCode(request.resource.data.inviteCode)
+        && isDate(request.resource.data.seasonStart)
+        && isDate(request.resource.data.seasonEnd)
+        && request.resource.data.seasonEnd > request.resource.data.seasonStart
+        && request.resource.data.memberCount == 1
+        && existsAfter(memberPath(cid, request.auth.uid));
+
+      allow update: if signedIn() && (
+        // Creator renames or rotates the invite code. Season dates are fixed forever.
+        ( memberOf(cid) && creatorOf(cid)
+          && changed().hasOnly(['name','inviteCode'])
+          && okName(request.resource.data.name)
+          && okCode(request.resource.data.inviteCode) )
+        ||
+        // JOIN: the count goes up by exactly one, only alongside the caller's own new
+        // member row (whose rule checks the invite code), and never past 12.
+        ( changed().hasOnly(['memberCount'])
+          && request.resource.data.memberCount == resource.data.memberCount + 1
+          && request.resource.data.memberCount <= 12
+          && !exists(memberPath(cid, request.auth.uid))
+          && existsAfter(memberPath(cid, request.auth.uid)) )
+        ||
+        // LEAVE / REMOVE: down by exactly one, naming the member row this batch deletes.
+        ( changed().hasOnly(['memberCount','lastRemoved'])
+          && request.resource.data.memberCount == resource.data.memberCount - 1
+          && request.resource.data.lastRemoved is string
+          && exists(memberPath(cid, request.resource.data.lastRemoved))
+          && !existsAfter(memberPath(cid, request.resource.data.lastRemoved))
+          && (request.resource.data.lastRemoved == request.auth.uid
+              || (memberOf(cid) && creatorOf(cid))) )
+      );
+
+      // Only the last member out deletes the circle, in the same batch as their leave.
+      allow delete: if memberOf(cid)
+        && resource.data.memberCount <= 1
+        && !existsAfter(memberPath(cid, request.auth.uid));
+
+      // ---------- members ----------
+      match /members/{uid} {
+        allow read: if memberOf(cid);
+
+        allow create: if isSelf(uid)
+          && request.resource.data.keys().hasOnly(['displayName','joinedAt','showScore','inviteCode'])
+          && okDisplay(request.resource.data.displayName)
+          && request.resource.data.joinedAt is number
+          && request.resource.data.showScore == false        // opting in is a separate, explicit act
+          && (
+            // creating the circle: this batch creates it, with me as creator
+            ( !exists(circlePath(cid))
+              && getAfter(circlePath(cid)).data.createdBy == request.auth.uid
+              && getAfter(circlePath(cid)).data.memberCount == 1 )
+            ||
+            // joining: must present the circle's CURRENT invite code (a rotated code is dead)
+            // and bump the count in the same batch (the circle rule caps it at 12)
+            ( exists(circlePath(cid))
+              && request.resource.data.inviteCode == get(circlePath(cid)).data.inviteCode
+              && getAfter(circlePath(cid)).data.memberCount == get(circlePath(cid)).data.memberCount + 1 )
+          );
+
+        // Your own row only. Turning showScore off must retract the score on your card
+        // in the same batch — a score that stays published after opting out is a leak.
+        allow update: if isSelf(uid)
+          && changed().hasOnly(['showScore','displayName'])
+          && request.resource.data.showScore is bool
+          && okDisplay(request.resource.data.displayName)
+          && (request.resource.data.showScore == true
+              || !existsAfter(cardPath(cid, uid))
+              || getAfter(cardPath(cid, uid)).data.score == null);
+
+        // LEAVE (self) or REMOVE (creator). The card goes in the same batch, so the person
+        // is off the board the instant the write lands; the count goes down with it, or the
+        // circle itself is deleted when this was the last member.
+        allow delete: if (isSelf(uid) || (memberOf(cid) && creatorOf(cid)))
+          && !existsAfter(cardPath(cid, uid))
+          && ( !existsAfter(circlePath(cid))
+               || ( getAfter(circlePath(cid)).data.memberCount == get(circlePath(cid)).data.memberCount - 1
+                    && getAfter(circlePath(cid)).data.lastRemoved == uid ) );
+      }
+
+      // ---------- cards (per circle) ----------
+      // A card is readable only by current members of THIS circle. Its score is present
+      // only when the owner opted in for THIS circle — enforced here, not just in the client.
+      match /cards/{uid} {
+        allow read: if memberOf(cid);
+
+        allow create, update: if isSelf(uid)
+          && existsAfter(memberPath(cid, uid))
+          && request.resource.data.keys().hasOnly([
+               'band','score','consistency','onTargetDays','leverDays','confirmedDays',
+               'movement','movementFrom','practiceLine','provenance','updatedAt'])
+          && request.resource.data.band is string
+          && request.resource.data.band.size() <= 80
+          && (request.resource.data.score == null
+              || (request.resource.data.score is number
+                  && request.resource.data.score >= 0 && request.resource.data.score <= 100
+                  && getAfter(memberPath(cid, uid)).data.showScore == true))
+          && (request.resource.data.consistency == null
+              || (request.resource.data.consistency is number
+                  && request.resource.data.consistency >= 0 && request.resource.data.consistency <= 1))
+          && request.resource.data.onTargetDays is int
+          && request.resource.data.leverDays is int
+          && request.resource.data.confirmedDays is int
+          && request.resource.data.confirmedDays >= 0 && request.resource.data.confirmedDays <= 400
+          && (request.resource.data.movement == null
+              || (request.resource.data.movement is number
+                  && request.resource.data.movement >= -100 && request.resource.data.movement <= 100))
+          && (request.resource.data.movementFrom == null || isDate(request.resource.data.movementFrom))
+          && request.resource.data.practiceLine is string
+          && request.resource.data.practiceLine.size() <= 120
+          && request.resource.data.provenance in ['self-reported','sensor','mixed'];
+
+        allow delete: if isSelf(uid)
+          || (memberOf(cid) && creatorOf(cid) && !existsAfter(memberPath(cid, uid)));
+      }
+    }
+
+    // ---------- invite codes ----------
+    // Resolves a link to { cid, name } for the join preview. One code at a time only:
+    // listing is denied, so codes cannot be enumerated. Only the circle's creator can mint
+    // a code, and only the circle's current code; nobody can repoint an existing one.
+    match /inviteCodes/{code} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['cid','name'])
+        && okName(request.resource.data.name)
+        && getAfter(circlePath(request.resource.data.cid)).data.createdBy == request.auth.uid
+        && getAfter(circlePath(request.resource.data.cid)).data.inviteCode == code;
+      allow update: if false;
+      // Creator retires an old code on rotation; the last member out retires it with the circle.
+      allow delete: if signedIn() && (
+        ( exists(circlePath(resource.data.cid))
+          && get(circlePath(resource.data.cid)).data.createdBy == request.auth.uid
+          && getAfter(circlePath(resource.data.cid)).data.inviteCode != code )
+        ||
+        ( exists(memberPath(resource.data.cid, request.auth.uid))
+          && !existsAfter(circlePath(resource.data.cid)) )
+      );
+    }
+
+    // ---------- default deny ----------
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
