@@ -195,6 +195,15 @@ nav.bottom{display:none}
 /* ---- provenance ---- */
 .provtag{font-size:10px;letter-spacing:.03em;font-weight:700;text-transform:uppercase;padding:2px 7px;border-radius:999px;border:1px solid var(--line2);color:var(--text2);white-space:nowrap;cursor:help}
 .provtag.sensor{color:var(--purple-dk);border-color:var(--purple);background:var(--purple-bg)}
+.ciboard{display:flex;flex-direction:column}
+.cirow{display:grid;grid-template-columns:22px minmax(0,1fr) 92px 84px;gap:8px;align-items:center;padding:9px 4px;border:0;border-bottom:1px solid var(--line);background:none;color:inherit;font:inherit;text-align:left;width:100%;cursor:pointer;border-radius:0}
+.cirow:last-child{border-bottom:none}
+.cirow.cihead{cursor:default;padding:0 4px 6px;font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--text2)}
+.cirow.me{background:var(--card2)}
+.cirank{font-weight:700;color:var(--text2);text-align:center}
+.ciname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13.5px}
+.cicol{font-size:13px;line-height:1.25;min-width:0;overflow-wrap:anywhere}
+.cirow .sub2{font-size:10.5px;color:var(--text3);font-weight:400}
 .scorehero .provtag{align-self:center}
 .scorehead .provtag{margin-left:8px}
 /* ---- score v2: the hero ---- */
@@ -1295,7 +1304,41 @@ en:{
  ob_sample:"Load a sample week so I can explore first (fake data — clear it later in Setup)", ob_done:"Start HEBE",
  ob_welcome:"Welcome, {0}. Log today below.", ob_needName:"Add your first name", ob_needDob:"Add your birth date", ob_badDob:"Check the birth date",
  ci_me:"Me", ci_errMine:"You can be in up to {0} circles.", ci_errLink:"This invite link doesn’t work any more — ask for a new one.",
- ci_errJoin:"Couldn’t join. The link may be out of date, or the circle is full (12 people)."
+ ci_errJoin:"Couldn’t join. The link may be out of date, or the circle is full (12 people).",
+ ci_title:"Circles", ci_empty:"You’re not in a circle yet.",
+ ci_what:"A circle is 2–12 people who chose each other. Season 0 ranks on consistency — how often your levers were on target — never on who has the higher score.",
+ ci_private:"Nobody can find you. There is no search, no discovery and no public profile.",
+ ci_create:"Create a circle", ci_haveLink:"I have an invite link", ci_open:"Open",
+ ci_people:"{0} people", ci_person:"1 person", ci_loading:"Loading…",
+ ci_loadFail:"Couldn’t load this circle. You may no longer be a member.",
+ ci_name:"Name", ci_namePh:"Gym crew", ci_start:"Season starts", ci_end:"Season ends",
+ ci_s0note:"Season 0 runs 4 weeks. The dates can’t be changed once the circle exists.",
+ ci_createGo:"Create", ci_cancel:"Cancel", ci_close:"Close",
+ ci_errName:"Give the circle a name (up to 60 characters).", ci_errDates:"The season has to end after it starts.",
+ ci_pasteLink:"Paste the invite link (or just the code):",
+ ci_season:"Season 0 · {0} – {1}", ci_startsOn:"starts {0}", ci_daysLeft:"{0} days left", ci_lastDay:"last day", ci_ended:"ended {0}",
+ ci_colCons:"Consistency", ci_colMove:"Movement", ci_you:"you",
+ ci_days:"{0} days", ci_day1:"1 day", ci_gettingStarted:"getting started · {0}",
+ ci_notYet:"not yet", ci_since:"since {0}", ci_noCard:"no card yet",
+ ci_legendRank:"Ranked on consistency: how often each lever was on target, counting only days confirmed within 8 days. A day nobody logged counts for nothing either way. Under 5 confirmed days: listed, not ranked.",
+ ci_legendMove:"Movement is the score’s change this season. It fills in once a person’s score has two weeks of history.",
+ ci_legendPriv:"Nobody’s score is shown unless they chose to. Days, food, weight and HEBE age never leave their owner’s account.",
+ ci_invite:"Invite link", ci_refresh:"Refresh", ci_leave:"Leave circle", ci_back:"‹ Setup",
+ ci_inviteTitle:"Invite to {0}", ci_inviteNote:"Anyone with this link can join until the circle has 12 people. Send it only to people you chose.",
+ ci_copy:"Copy link", ci_copied:"Link copied",
+ ci_leaveConfirm:"Leave {0}? You’ll disappear from its board straight away.", ci_left:"You left {0}",
+ ci_forming:"score still forming", ci_scoreShared:"shared with this circle only",
+ ci_consLine:"{0} of {1} lever-days on target", ci_confirmed:"{0} confirmed days this season",
+ ci_practice:"trains {0}×/wk · sleeps {1} h", ci_pvMixed:"mixed sources",
+ ci_showScore:"Show my score to this circle", ci_showNote:"Off by default. This circle only — your other circles stay separate.",
+ ci_scoreOn:"Your score is now visible to this circle", ci_scoreOff:"Your score is hidden from this circle",
+ ci_displayName:"Your name in this circle", ci_save:"Save", ci_saved:"Saved",
+ ci_cardNote:"Your card is rebuilt from your own log after each check-in. Only what is on this card is shared.",
+ ci_joinTitle:"Join {0}?",
+ ci_joinBody:"Its members will see your circle card: band, consistency, movement, a practice line and where your data comes from. Never your days, food, weight or HEBE age. Your score stays hidden unless you turn it on.",
+ ci_join:"Join", ci_notNow:"Not now", ci_joined:"You joined {0}", ci_created:"Circle created — send the invite link",
+ ci_inviteSignin:"You’ve been invited to a HEBE circle. Circles need a Google sign-in, because comparing needs a second person. Everything else in HEBE works without one.",
+ ci_signInJoin:"Sign in with Google", ci_needConfig:"Sign-in isn’t set up on this device yet."
 },
 fr:{
  nutrition:"Nutrition", logFood:"Enregistrer un aliment",
@@ -1374,7 +1417,41 @@ fr:{
  nothingWeighedHome:"Rien de pesé. <b class='lnk' data-page='fuel'>Enregistre un aliment avec son poids</b> et les 22 nutriments se remplissent.",
  addedToast:"Ajouté — {0}/100", scoringToast:"Évaluation de « {0} »…",
  ci_me:"Moi", ci_errMine:"Tu peux faire partie de {0} cercles au maximum.", ci_errLink:"Ce lien d’invitation ne fonctionne plus — demandes-en un nouveau.",
- ci_errJoin:"Impossible de rejoindre. Le lien est peut-être périmé, ou le cercle est complet (12 personnes)."
+ ci_errJoin:"Impossible de rejoindre. Le lien est peut-être périmé, ou le cercle est complet (12 personnes).",
+ ci_title:"Cercles", ci_empty:"Tu ne fais encore partie d’aucun cercle.",
+ ci_what:"Un cercle, c’est 2 à 12 personnes qui se sont choisies. La saison 0 classe sur la régularité — combien de fois tes leviers étaient dans la cible — jamais sur qui a le meilleur score.",
+ ci_private:"Personne ne peut te trouver. Pas de recherche, pas de découverte, pas de profil public.",
+ ci_create:"Créer un cercle", ci_haveLink:"J’ai un lien d’invitation", ci_open:"Ouvrir",
+ ci_people:"{0} personnes", ci_person:"1 personne", ci_loading:"Chargement…",
+ ci_loadFail:"Impossible de charger ce cercle. Tu n’en fais peut-être plus partie.",
+ ci_name:"Nom", ci_namePh:"L’équipe de la salle", ci_start:"Début de la saison", ci_end:"Fin de la saison",
+ ci_s0note:"La saison 0 dure 4 semaines. Les dates ne peuvent plus changer une fois le cercle créé.",
+ ci_createGo:"Créer", ci_cancel:"Annuler", ci_close:"Fermer",
+ ci_errName:"Donne un nom au cercle (60 caractères maximum).", ci_errDates:"La saison doit finir après avoir commencé.",
+ ci_pasteLink:"Colle le lien d’invitation (ou juste le code) :",
+ ci_season:"Saison 0 · {0} – {1}", ci_startsOn:"commence le {0}", ci_daysLeft:"encore {0} jours", ci_lastDay:"dernier jour", ci_ended:"terminée le {0}",
+ ci_colCons:"Régularité", ci_colMove:"Progression", ci_you:"toi",
+ ci_days:"{0} jours", ci_day1:"1 jour", ci_gettingStarted:"en démarrage · {0}",
+ ci_notYet:"pas encore", ci_since:"depuis le {0}", ci_noCard:"pas encore de carte",
+ ci_legendRank:"Classement sur la régularité : combien de fois chaque levier était dans la cible, en ne comptant que les jours confirmés dans les 8 jours. Un jour non enregistré ne compte ni pour ni contre. Moins de 5 jours confirmés : listé, pas classé.",
+ ci_legendMove:"La progression, c’est l’évolution du score pendant la saison. Elle apparaît quand le score d’une personne a deux semaines d’historique.",
+ ci_legendPriv:"Le score de chacun reste caché sauf s’il choisit de le montrer. Les jours, l’alimentation, le poids et l’âge HEBE ne quittent jamais le compte de leur propriétaire.",
+ ci_invite:"Lien d’invitation", ci_refresh:"Actualiser", ci_leave:"Quitter le cercle", ci_back:"‹ Réglages",
+ ci_inviteTitle:"Inviter dans {0}", ci_inviteNote:"Toute personne qui a ce lien peut rejoindre tant que le cercle n’a pas 12 personnes. Envoie-le seulement à des gens que tu as choisis.",
+ ci_copy:"Copier le lien", ci_copied:"Lien copié",
+ ci_leaveConfirm:"Quitter {0} ? Tu disparais tout de suite de son classement.", ci_left:"Tu as quitté {0}",
+ ci_forming:"score encore en formation", ci_scoreShared:"partagé avec ce cercle seulement",
+ ci_consLine:"{0} jours-leviers sur {1} dans la cible", ci_confirmed:"{0} jours confirmés cette saison",
+ ci_practice:"s’entraîne {0}×/sem · dort {1} h", ci_pvMixed:"sources mixtes",
+ ci_showScore:"Montrer mon score à ce cercle", ci_showNote:"Désactivé par défaut. Ce cercle seulement — tes autres cercles restent séparés.",
+ ci_scoreOn:"Ton score est maintenant visible dans ce cercle", ci_scoreOff:"Ton score est caché dans ce cercle",
+ ci_displayName:"Ton nom dans ce cercle", ci_save:"Enregistrer", ci_saved:"Enregistré",
+ ci_cardNote:"Ta carte est recalculée à partir de ton propre journal après chaque bilan. Seul ce qui figure sur cette carte est partagé.",
+ ci_joinTitle:"Rejoindre {0} ?",
+ ci_joinBody:"Ses membres verront ta carte de cercle : bande, régularité, progression, une ligne sur tes habitudes et l’origine de tes données. Jamais tes jours, ton alimentation, ton poids ni ton âge HEBE. Ton score reste caché sauf si tu l’actives.",
+ ci_join:"Rejoindre", ci_notNow:"Pas maintenant", ci_joined:"Tu as rejoint {0}", ci_created:"Cercle créé — envoie le lien d’invitation",
+ ci_inviteSignin:"Tu as été invité·e dans un cercle HEBE. Les cercles demandent une connexion Google, parce que comparer demande une deuxième personne. Tout le reste de HEBE fonctionne sans.",
+ ci_signInJoin:"Se connecter avec Google", ci_needConfig:"La connexion n’est pas encore configurée sur cet appareil."
 }};
 
 // First visit follows the browser; after that the user's choice wins.
@@ -2385,6 +2462,7 @@ async function loadBoard(cid){
 function circlesAuthChanged(u){
   CIRCLES.ids = null; CIRCLES.meta = {}; CIRCLES.board = {};
   try{ if(u) localStorage.setItem('hebe_fb_on','1'); else localStorage.removeItem('hebe_fb_on'); }catch(e){}
+  if(CIRCLES.pendingJoin) setTimeout(ciJoinPrompt, 300);   // an invite link survives sign-in
   if(!u){ CIRCLES.open = null; if(S.page==='circle') S.page = 'setup'; return; }
   schedulePublishCards();
 }
@@ -3699,7 +3777,8 @@ function scorePanelHTML(){
   h += '<div class="sub" style="font-size:10.5px;margin-top:8px;line-height:1.45"><b>'+esc(t('pv_line'))+'.</b> '
     + esc(t('pv_explain'))+'</div>';
   h += '<div class="sub" style="font-size:10.5px;margin-top:6px;line-height:1.45">Derived from your logged '
-    + 'days, not measured. Private to this device — HEBE has no sharing, no circles and no leaderboard.</div>';
+    + 'days, not measured. Private unless you join a circle — then its members see only your circle card, '
+    + 'and your score only if you turn it on for that circle.</div>';
   return h + '</div>';
 }
 
@@ -4275,6 +4354,8 @@ function renderSetup(){
     + '</div>'
     + '<details class="sub mt" style="font-size:11.5px"><summary style="cursor:pointer">Firestore rules (copy into console)</summary><pre style="background:var(--card2);padding:8px;border-radius:8px;overflow-x:auto;font-size:10.5px">rules_version = \'2\';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    match /users/{uid}/{document=**} {\n      allow read, write: if request.auth != null &amp;&amp; request.auth.uid == uid;\n    }\n  }\n}</pre></details></div>';
 
+  h += renderCirclesSetup();
+
   h += '<div class="card mt fade"><h3>Backup &amp; data</h3><div class="sub">Your data lives in this browser. Export a file to keep it or move it to another device — or connect your own Firebase above for automatic sync.</div>'
     + '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">'
     + '<button class="btn primary" id="exportBtn">Export JSON</button>'
@@ -4308,6 +4389,283 @@ function renderSetup(){
   return h;
 }
 
+/* ---------- CIRCLES · screens (Season 0) ----------
+   Hidden entirely for local-only users - signing in is the opt-in. The one
+   exception is an invite link, which asks the visitor to sign in to join it.
+   The bottom of the board reads exactly like the top: no red, no "last place",
+   no nudges. Leaving is one tap plus one confirm, never discouraged. -------- */
+function ciDate(k){ return k ? new Date(k+'T12:00:00').toLocaleDateString(uiLang()==='fr'?'fr-FR':'en-GB', { day:'numeric', month:'short' }) : ''; }
+function ciDays(n){ return n===1 ? t('ci_day1') : t('ci_days', n); }
+function ciPractice(s){
+  const o = {}; String(s||'').split(';').forEach(p=>{ const kv = p.split('='); if(kv[0]) o[kv[0]] = kv[1]; });
+  const tw = parseInt(o.t,10), sl = parseFloat(o.s);
+  if(!isFinite(tw) && !isFinite(sl)) return '';
+  return t('ci_practice', isFinite(tw)?tw:'–', isFinite(sl)?ciNum(sl):'–');
+}
+function ciNum(v){ const s = Math.abs(v).toFixed(1); return uiLang()==='fr' ? s.replace('.', ',') : s; }
+function ciBand(k){ return (typeof k==='string' && k.indexOf('sb_')===0) ? t(k) : t('ci_forming'); }
+function ciProv(k){ return k==='sensor' ? t('pv_sensor') : k==='mixed' ? t('ci_pvMixed') : t('pv_self'); }
+function ciMove(v){ return (v>0?'+':v<0?'−':'')+ciNum(v); }
+function ciSeasonState(c){
+  const today = todayStr();
+  if(today < c.seasonStart) return t('ci_startsOn', ciDate(c.seasonStart));
+  if(today > c.seasonEnd) return t('ci_ended', ciDate(c.seasonEnd));
+  const left = dayGap(today, c.seasonEnd);
+  return left===0 ? t('ci_lastDay') : t('ci_daysLeft', left);
+}
+function ciInviteLink(code){ return location.origin + location.pathname + '#join=' + code; }
+
+// Setup -> Circles. Signed-in users only.
+let ciListLoading = false;
+function renderCirclesSetup(){
+  if(!circlesOn()) return '';
+  let h = '<div class="card mt fade" id="circlesCard"><h3>'+esc(t('ci_title'))+'</h3>';
+  if(CIRCLES.ids===null || ciListLoading){
+    if(!ciListLoading){
+      ciListLoading = true;
+      loadMyCircles().catch(e=>{ console.warn(e); CIRCLES.ids = CIRCLES.ids || []; })
+        .then(()=>{ ciListLoading = false; if(S.page==='setup') render(); });
+    }
+    return h + '<div class="sub mt">'+esc(t('ci_loading'))+'</div></div>';
+  }
+  const list = CIRCLES.ids.map(id=> CIRCLES.meta[id]).filter(Boolean);
+  if(!list.length){
+    h += '<div class="mt" style="font-weight:600;font-size:13.5px">'+esc(t('ci_empty'))+'</div>'
+      + '<div class="sub mt" style="line-height:1.5">'+esc(t('ci_what'))+'</div>';
+  } else list.forEach(c=>{
+    h += '<div class="list-item"><div style="min-width:0"><b style="font-size:13px">'+esc(c.name)+'</b>'
+      + '<div class="sub" style="font-size:11px">'+esc(t('ci_season', ciDate(c.seasonStart), ciDate(c.seasonEnd)))+' · '+esc(ciSeasonState(c))+'</div></div>'
+      + '<button class="btn" data-ciopen="'+esc(c.id)+'" style="font-size:12px;padding:5px 10px;flex-shrink:0">'+esc(t('ci_open'))+'</button></div>';
+  });
+  h += '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">'
+    + '<button class="btn primary" id="ciCreate">'+esc(t('ci_create'))+'</button>'
+    + '<button class="btn" id="ciHaveLink">'+esc(t('ci_haveLink'))+'</button></div>'
+    + '<div class="sub mt" style="font-size:11.5px">'+esc(t('ci_private'))+'</div></div>';
+  return h;
+}
+
+// The circle screen: season dates, the board ranked on consistency, movement beside it.
+let ciBoardLoading = null;
+async function ciRefresh(cid){
+  try{ await publishCard(cid); await loadBoard(cid); }
+  catch(e){ console.warn(e); CIRCLES.board[cid] = { error:true }; }
+  ciBoardLoading = null;
+  if(S.page==='circle' && CIRCLES.open===cid) render();
+}
+function renderCircle(){
+  const cid = CIRCLES.open;
+  let h = topline() + '<div class="fade"><button class="btn" id="ciBack" style="font-size:12px;padding:5px 10px">'+esc(t('ci_back'))+'</button>';
+  if(!circlesOn() || !cid) return h + '</div>';
+  const b = CIRCLES.board[cid];
+  if(!b){
+    if(ciBoardLoading!==cid){ ciBoardLoading = cid; ciRefresh(cid); }
+    return h + '<div class="card mt"><div class="sub">'+esc(t('ci_loading'))+'</div></div></div>';
+  }
+  if(b.error) return h + '<div class="card mt"><div class="sub">'+esc(t('ci_loadFail'))+'</div></div></div>';
+  const c = b.circle, n = b.rows.length;
+  h += '<div class="card mt"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap">'
+    + '<h3 style="margin:0;min-width:0;overflow-wrap:anywhere">'+esc(c.name)+'</h3><span class="sub">'+esc(n===1?t('ci_person'):t('ci_people', n))+'</span></div>'
+    + '<div class="sub" style="margin-top:4px">'+esc(t('ci_season', ciDate(c.seasonStart), ciDate(c.seasonEnd)))+' · '+esc(ciSeasonState(c))+'</div>';
+  h += '<div class="ciboard mt"><div class="cirow cihead"><span></span><span></span><span>'+esc(t('ci_colCons'))+'</span><span>'+esc(t('ci_colMove'))+'</span></div>';
+  b.rows.forEach(r=>{
+    const cd = r.card;
+    const nm = esc(r.member.displayName)+(r.me?' <span class="sub2">· '+esc(t('ci_you'))+'</span>':'');
+    let cons = '', move = '';
+    if(!cd) cons = '<span class="sub2">'+esc(t('ci_noCard'))+'</span>';
+    else if(r.rank==null) cons = '<span class="sub2">'+esc(t('ci_gettingStarted', ciDays(cd.confirmedDays)))+'</span>';
+    else cons = '<b>'+Math.round(cd.consistency*100)+'%</b><div class="sub2">'+esc(ciDays(cd.confirmedDays))+'</div>';
+    if(cd) move = cd.movement!=null
+      ? '<b>'+ciMove(cd.movement)+'</b><div class="sub2">'+esc(t('ci_since', ciDate(cd.movementFrom)))+'</div>'
+      : '<span class="sub2">'+esc(t('ci_notYet'))+'</span>';
+    h += '<button class="cirow'+(r.me?' me':'')+'" data-cimember="'+esc(r.uid)+'">'
+      + '<span class="cirank">'+(r.rank!=null?r.rank:'–')+'</span><span class="ciname">'+nm+'</span>'
+      + '<span class="cicol">'+cons+'</span><span class="cicol">'+move+'</span></button>';
+  });
+  h += '</div>';
+  h += '<div class="sub" style="font-size:11px;line-height:1.5;margin-top:10px">'+esc(t('ci_legendRank'))+'</div>'
+    + '<div class="sub" style="font-size:11px;line-height:1.5;margin-top:5px">'+esc(t('ci_legendMove'))+'</div>'
+    + '<div class="sub" style="font-size:11px;line-height:1.5;margin-top:5px">'+esc(t('ci_legendPriv'))+'</div>';
+  h += '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">'
+    + '<button class="btn primary" id="ciInvite">'+esc(t('ci_invite'))+'</button>'
+    + '<button class="btn" id="ciRefresh">'+esc(t('ci_refresh'))+'</button>'
+    + '<button class="btn" id="ciLeave">'+esc(t('ci_leave'))+'</button></div></div></div>';
+  return h;
+}
+
+// A member's card, on tap. Only what the owner's client published - nothing else exists here.
+function ciMemberModal(uid){
+  const b = CIRCLES.board[CIRCLES.open]; if(!b || !b.rows) return;
+  const r = b.rows.find(x=> x.uid===uid); if(!r) return;
+  const cd = r.card;
+  let h = '<h3 style="margin:0 0 2px;overflow-wrap:anywhere">'+esc(r.member.displayName)+(r.me?' <span class="sub">· '+esc(t('ci_you'))+'</span>':'')+'</h3>';
+  if(!cd) h += '<div class="sub mt">'+esc(t('ci_noCard'))+'</div>';
+  else {
+    h += '<div class="sub">'+esc(ciBand(cd.band))+'</div>';
+    if(cd.score!=null) h += '<div style="font-size:24px;font-weight:700;margin-top:10px">'+Math.round(cd.score)+' <span class="sub">/ 100</span></div>'
+      + '<div class="sub" style="font-size:11px">'+esc(t('ci_scoreShared'))+'</div>';
+    h += '<div class="list-item mt"><span>'+esc(t('ci_colCons'))+'</span><b>'+(cd.consistency!=null?Math.round(cd.consistency*100)+'%':'–')+'</b></div>'
+      + '<div class="sub" style="font-size:11px">'+esc(t('ci_consLine', cd.onTargetDays, cd.leverDays))+' · '+esc(t('ci_confirmed', cd.confirmedDays))+'</div>'
+      + '<div class="list-item mt"><span>'+esc(t('ci_colMove'))+'</span><b>'
+      + (cd.movement!=null ? ciMove(cd.movement)+' <span class="sub">'+esc(t('ci_since', ciDate(cd.movementFrom)))+'</span>' : esc(t('ci_notYet')))+'</b></div>';
+    const pr = ciPractice(cd.practiceLine);
+    if(pr) h += '<div class="mt" style="font-size:13px">'+esc(pr)+'</div>';
+    h += '<div class="mt"><span class="provtag '+(cd.provenance==='self-reported'?'self':'sensor')+'">'+esc(ciProv(cd.provenance))+'</span></div>';
+  }
+  if(r.me){
+    h += '<div class="mt" style="border-top:1px solid var(--line);padding-top:10px">'
+      + '<label style="display:flex;gap:8px;align-items:center;font-size:13px;cursor:pointer"><input type="checkbox" id="ciShow" style="width:auto"'+(r.member.showScore?' checked':'')+'> '+esc(t('ci_showScore'))+'</label>'
+      + '<div class="sub" style="font-size:11px;margin-top:3px">'+esc(t('ci_showNote'))+'</div>'
+      + '<label class="f mt">'+esc(t('ci_displayName'))+'</label>'
+      + '<div style="display:flex;gap:8px"><input id="ciName" maxlength="40" value="'+esc(r.member.displayName)+'"><button class="btn" id="ciSaveName">'+esc(t('ci_save'))+'</button></div>'
+      + '<div class="sub" style="font-size:11px;margin-top:8px;line-height:1.45">'+esc(t('ci_cardNote'))+'</div></div>';
+  }
+  h += '<div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn" id="ciClose">'+esc(t('ci_close'))+'</button></div>';
+  showModal(h);
+}
+function ciCreateModal(){
+  const s = todayStr(), e = new Date(s+'T12:00:00'); e.setDate(e.getDate()+SEASON0_DAYS-1);
+  showModal('<h3 style="margin:0">'+esc(t('ci_create'))+'</h3>'
+    + '<label class="f mt">'+esc(t('ci_name'))+'</label><input id="ciNameNew" maxlength="60" placeholder="'+esc(t('ci_namePh'))+'">'
+    + '<div class="frow mt"><div><label class="f">'+esc(t('ci_start'))+'</label><input type="date" id="ciStart" value="'+s+'"></div>'
+    + '<div><label class="f">'+esc(t('ci_end'))+'</label><input type="date" id="ciEnd" value="'+dstr(e)+'"></div></div>'
+    + '<div class="sub mt" style="font-size:11.5px;line-height:1.45">'+esc(t('ci_s0note'))+'</div>'
+    + '<div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end"><button class="btn" id="ciClose">'+esc(t('ci_cancel'))+'</button>'
+    + '<button class="btn primary" id="ciCreateGo">'+esc(t('ci_createGo'))+'</button></div>');
+}
+async function ciCreateGo(btn){
+  const name = ((document.getElementById('ciNameNew')||{}).value||'').trim();
+  const s = (document.getElementById('ciStart')||{}).value||'', e = (document.getElementById('ciEnd')||{}).value||'';
+  if(!name || name.length>60){ toast(t('ci_errName')); return; }
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(s) || !/^\d{4}-\d{2}-\d{2}$/.test(e) || e<=s){ toast(t('ci_errDates')); return; }
+  btn.disabled = true;
+  try{
+    const cid = await createCircle(name, s, e);
+    hideModal(); CIRCLES.open = cid; S.page = 'circle'; render();
+    toast(t('ci_created')); ciInviteModal();
+  }catch(err){ btn.disabled = false; toast(err.message); }
+}
+function ciInviteModal(){
+  const c = CIRCLES.meta[CIRCLES.open]; if(!c) return;
+  showModal('<h3 style="margin:0;overflow-wrap:anywhere">'+esc(t('ci_inviteTitle', c.name))+'</h3>'
+    + '<input id="ciLink" class="mt" readonly value="'+esc(ciInviteLink(c.inviteCode))+'">'
+    + '<div class="sub mt" style="font-size:11.5px;line-height:1.45">'+esc(t('ci_inviteNote'))+'</div>'
+    + '<div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end"><button class="btn" id="ciClose">'+esc(t('ci_close'))+'</button>'
+    + '<button class="btn primary" id="ciCopy">'+esc(t('ci_copy'))+'</button></div>');
+}
+async function ciLeave(btn){
+  const cid = CIRCLES.open, c = CIRCLES.meta[cid] || {}; if(!cid) return;
+  if(!confirm(t('ci_leaveConfirm', c.name||''))) return;
+  btn.disabled = true;
+  try{ await leaveCircle(cid); S.page = 'setup'; render(); toast(t('ci_left', c.name||'')); }
+  catch(err){ btn.disabled = false; toast(err.message); }
+}
+
+// Invite links: #join=<code>. Kept across onboarding and sign-in, then offered once.
+function ciClearInvite(){ CIRCLES.pendingJoin = null; try{ localStorage.removeItem('hebe_join'); }catch(e){} }
+function ciCaptureInvite(){
+  const m = /[#&]join=([a-z0-9]{16,64})/i.exec(location.hash||'');
+  if(m){
+    CIRCLES.pendingJoin = m[1];
+    try{ localStorage.setItem('hebe_join', m[1]); }catch(e){}
+    try{ history.replaceState(null, '', location.pathname + location.search); }catch(e){}
+    return true;
+  }
+  try{ CIRCLES.pendingJoin = CIRCLES.pendingJoin || localStorage.getItem('hebe_join'); }catch(e){}
+  return false;
+}
+async function ciJoinPrompt(){
+  const code = CIRCLES.pendingJoin;
+  if(!code || onboardingOpen) return;
+  const btns = (goId, goLabel, disabled)=> '<div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end">'
+    + '<button class="btn" id="ciNotNow">'+esc(t('ci_notNow'))+'</button>'
+    + '<button class="btn primary" id="'+goId+'"'+(disabled?' disabled':'')+'>'+esc(goLabel)+'</button></div>';
+  if(!circlesOn()){
+    const can = !!parseFbConfig();
+    showModal('<h3 style="margin:0">'+esc(t('ci_title'))+'</h3>'
+      + '<div class="sub mt" style="line-height:1.55">'+esc(t('ci_inviteSignin'))+'</div>'
+      + (can ? '' : '<div class="sub mt" style="color:var(--amber)">'+esc(t('ci_needConfig'))+'</div>')
+      + btns('ciSignInJoin', t('ci_signInJoin'), !can));
+    return;
+  }
+  let inv = null;
+  try{ inv = await resolveInvite(code); }catch(e){ inv = null; }
+  if(!inv){
+    ciClearInvite();
+    showModal('<div class="sub" style="line-height:1.55">'+esc(t('ci_errLink'))+'</div>'
+      + '<div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn" id="ciClose">'+esc(t('ci_close'))+'</button></div>');
+    return;
+  }
+  CIRCLES.pendingName = inv.name;
+  showModal('<h3 style="margin:0;overflow-wrap:anywhere">'+esc(t('ci_joinTitle', inv.name))+'</h3>'
+    + '<div class="sub mt" style="line-height:1.55">'+esc(t('ci_joinBody'))+'</div>'
+    + btns('ciJoinGo', t('ci_join'), false));
+}
+async function ciJoinGo(btn){
+  const code = CIRCLES.pendingJoin, name = CIRCLES.pendingName || '';
+  if(!code) return;
+  btn.disabled = true;
+  try{
+    const cid = await joinCircle(code);
+    ciClearInvite(); hideModal();
+    CIRCLES.open = cid; delete CIRCLES.board[cid]; S.page = 'circle'; render();
+    toast(t('ci_joined', name));
+  }catch(err){ btn.disabled = false; toast(err.message); }
+}
+
+// Clicks for everything above. Called first from the document click handler,
+// which declares a local `t` further down - so this lives outside it.
+function circlesClick(e){
+  const op = e.target.closest('[data-ciopen]');
+  if(op){ CIRCLES.open = op.dataset.ciopen; delete CIRCLES.board[CIRCLES.open]; S.page = 'circle'; render(); return true; }
+  const mb = e.target.closest('[data-cimember]');
+  if(mb){ ciMemberModal(mb.dataset.cimember); return true; }
+  if(e.target.id==='ciShow'){
+    const box = e.target, on = box.checked, cid = CIRCLES.open;
+    box.disabled = true;
+    setShowScore(cid, on).then(()=>{ toast(t(on?'ci_scoreOn':'ci_scoreOff')); box.disabled = false; return ciRefresh(cid); })
+      .catch(err=>{ box.checked = !on; box.disabled = false; toast(err.message); });
+    return true;
+  }
+  const b = e.target.closest('button');
+  if(!b || !b.id) return false;
+  switch(b.id){
+    case 'ciCreate': ciCreateModal(); return true;
+    case 'ciCreateGo': ciCreateGo(b); return true;
+    case 'ciHaveLink': {
+      const v = prompt(t('ci_pasteLink'));
+      if(!v) return true;
+      const m = /join=([a-z0-9]{16,64})/i.exec(v) || /^\s*([a-z0-9]{16,64})\s*$/i.exec(v);
+      if(!m){ toast(t('ci_errLink')); return true; }
+      CIRCLES.pendingJoin = m[1]; ciJoinPrompt(); return true;
+    }
+    case 'ciJoinGo': ciJoinGo(b); return true;
+    case 'ciSignInJoin': hideModal(); signInGoogle(); return true;
+    case 'ciNotNow': ciClearInvite(); hideModal(); return true;
+    case 'ciClose': hideModal(); return true;
+    case 'ciBack': S.page = 'setup'; CIRCLES.open = null; render(); return true;
+    case 'ciInvite': ciInviteModal(); return true;
+    case 'ciCopy': {
+      const el = document.getElementById('ciLink'); if(!el) return true;
+      el.select();
+      const done = ()=> toast(t('ci_copied'));
+      if(navigator.clipboard) navigator.clipboard.writeText(el.value).then(done).catch(()=>{ try{ document.execCommand('copy'); done(); }catch(x){} });
+      else { try{ document.execCommand('copy'); done(); }catch(x){} }
+      return true;
+    }
+    case 'ciRefresh': delete CIRCLES.board[CIRCLES.open]; render(); return true;
+    case 'ciLeave': ciLeave(b); return true;
+    case 'ciSaveName': {
+      const cid = CIRCLES.open, v = ((document.getElementById('ciName')||{}).value||'').trim();
+      if(!v) return true;
+      b.disabled = true;
+      setCircleDisplayName(cid, v).then(()=>{ hideModal(); toast(t('ci_saved')); return ciRefresh(cid); })
+        .catch(err=>{ b.disabled = false; toast(err.message); });
+      return true;
+    }
+  }
+  return false;
+}
+
 // ---------- shell render ----------
 function navHtml(){
   return PAGES.map(([id,label,ic])=>'<button class="nav-item '+(S.page===id?'active':'')+'" data-page="'+id+'">'+ICONS[ic]+' '+label+'</button>').join('');
@@ -4327,6 +4685,7 @@ function render(){
   else if(S.page==='fuel'){ m.innerHTML=renderFuel(); fuelCharts(); }
   else if(S.page==='body'){ m.innerHTML=renderBody(); bodyCharts(); bodyMapMount(); }
   else if(S.page==='reports'){ m.innerHTML=renderReports(); reportCharts(); }
+  else if(S.page==='circle'){ m.innerHTML=renderCircle(); }
   else { m.innerHTML=renderSetup(); }
 }
 function applyTheme(){
@@ -4335,6 +4694,7 @@ function applyTheme(){
 
 // ---------- events ----------
 document.addEventListener('click', e=>{
+  if(circlesClick(e)) return;
   const pg = e.target.closest('[data-page]');
   if(pg){ S.page=pg.dataset.page; render(); return; }
   const rng = e.target.closest('[data-range]');
@@ -4389,7 +4749,7 @@ document.addEventListener('click', e=>{
   const t = e.target.closest('button, label'); if(!t) return;
   switch(t.id){
     case 'obDone': completeOnboarding(); break;
-    case 'obSkip': if(!confirm('Skip the walkthrough? HEBE will treat this device as already set up, and you can import a backup from Setup. To get the walkthrough back later: Setup, then Reset & re-onboard.')) break; onboardingOpen=false; S.onboarded=true; localStorage.setItem('hebe_onboarded','1'); ob=null; S.page='setup'; hideModal(); render(); break;
+    case 'obSkip': if(!confirm('Skip the walkthrough? HEBE will treat this device as already set up, and you can import a backup from Setup. To get the walkthrough back later: Setup, then Reset & re-onboard.')) break; onboardingOpen=false; S.onboarded=true; localStorage.setItem('hebe_onboarded','1'); ob=null; S.page='setup'; hideModal(); render(); if(CIRCLES.pendingJoin) setTimeout(ciJoinPrompt, 600); break;
     case 'umSave': {
       const dd = ensureDay(S.date);
       const nm = prompt(t('um_namePrompt'), fmtDate(S.date));
@@ -4460,6 +4820,9 @@ document.addEventListener('input', e=>{
 });
 document.addEventListener('change', e=>{
   const ds = e.target.dataset || {};
+  if(e.target.id==='ciStart' && e.target.value){           // Season 0 is 4 weeks: keep the end in step
+    const en = document.getElementById('ciEnd'), dt = new Date(e.target.value+'T12:00:00');
+    dt.setDate(dt.getDate()+SEASON0_DAYS-1); if(en) en.value = dstr(dt); return; }
   if(ds.planslot){ const [dt, i] = ds.planslot.split('|'); setPlanSlot(dt, +i, e.target.value||null); render(); return; }
   if(ds.planadd){ if(e.target.value) addPlanSlot(ds.planadd, e.target.value); render(); return; }
   if(ds.tplslot){ const [k, i] = ds.tplslot.split('|'); setTplSlot(k, +i, e.target.value||null); render(); return; }
@@ -4860,6 +5223,7 @@ function completeOnboarding(){
   S.page = 'home';
   if(wantSample) loadSampleWeek(); else render();
   toast(t('ob_welcome', name));
+  if(CIRCLES.pendingJoin) setTimeout(ciJoinPrompt, 600);    // arrived through an invite link
 }
 function loadSampleWeek(){
   const n=16; const jit=(base,spread)=>Math.round((base+(Math.random()*2-1)*spread)*10)/10;
@@ -4896,8 +5260,11 @@ applyTheme();
 ensureDay(S.date);
 render();
 setSync('local');
+ciCaptureInvite();
 if(parseFbConfig() && fbAutoInit()) initFirebase();
 if(!S.onboarded) showOnboarding();
+else if(CIRCLES.pendingJoin && !fbAutoInit()) ciJoinPrompt();   // signed-in users get it from the auth callback
+window.addEventListener('hashchange', ()=>{ if(ciCaptureInvite()) ciJoinPrompt(); });
 </script>
 </body>
 </html>
