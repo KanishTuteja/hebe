@@ -533,6 +533,7 @@ function saveDay(date){
   recomputeAgesFrom(date);
   persist();
   cloudPush(date);
+  schedulePublishCards();            // circle cards follow a confirmed day; no-op when signed out
 }
 // Side-feature write (heart readings, food entries, weight): persists and syncs
 // WITHOUT bumping the top-level updatedAt. confirmedDates() keys on updatedAt>0,
@@ -596,7 +597,7 @@ function fillMissedDays(){
     if(!(d.updatedAt>0) && !d.confirmedAt) d.confirmedAt=Date.now();   // same rule as saveDay
     d.updatedAt=Date.now(); });
   recomputeAgesFrom(missed[0]);
-  persist(); missed.forEach(cloudPush); render();
+  persist(); missed.forEach(cloudPush); schedulePublishCards(); render();
   toast(missed.length+' day'+(missed.length>1?'s':'')+' backfilled — HEBE age rebuilt');
 }
 
@@ -1292,7 +1293,9 @@ en:{
  ob_lockBlood:"Bloodwork", ob_lockBloodD:"unlocks with a standard panel — entered by you, never guessed",
  ob_lockNote:"HEBE won’t guess at the locked ones. It’ll track them properly once they’re real.",
  ob_sample:"Load a sample week so I can explore first (fake data — clear it later in Setup)", ob_done:"Start HEBE",
- ob_welcome:"Welcome, {0}. Log today below.", ob_needName:"Add your first name", ob_needDob:"Add your birth date", ob_badDob:"Check the birth date"
+ ob_welcome:"Welcome, {0}. Log today below.", ob_needName:"Add your first name", ob_needDob:"Add your birth date", ob_badDob:"Check the birth date",
+ ci_me:"Me", ci_errMine:"You can be in up to {0} circles.", ci_errLink:"This invite link doesn’t work any more — ask for a new one.",
+ ci_errJoin:"Couldn’t join. The link may be out of date, or the circle is full (12 people)."
 },
 fr:{
  nutrition:"Nutrition", logFood:"Enregistrer un aliment",
@@ -1369,7 +1372,9 @@ fr:{
  ofNutrients:"sur {0} nutriments à l’objectif", furthestShort:"Les plus loin :",
  allAtTarget:"Tous les nutriments à l’objectif aujourd’hui.",
  nothingWeighedHome:"Rien de pesé. <b class='lnk' data-page='fuel'>Enregistre un aliment avec son poids</b> et les 22 nutriments se remplissent.",
- addedToast:"Ajouté — {0}/100", scoringToast:"Évaluation de « {0} »…"
+ addedToast:"Ajouté — {0}/100", scoringToast:"Évaluation de « {0} »…",
+ ci_me:"Moi", ci_errMine:"Tu peux faire partie de {0} cercles au maximum.", ci_errLink:"Ce lien d’invitation ne fonctionne plus — demandes-en un nouveau.",
+ ci_errJoin:"Impossible de rejoindre. Le lien est peut-être périmé, ou le cercle est complet (12 personnes)."
 }};
 
 // First visit follows the browser; after that the user's choice wins.
@@ -2106,8 +2111,27 @@ function attachStory(chart, dates){
 }
 
 // ---------- firebase ----------
+// HEBE's own Firebase project, so a friend with a circle invite only has to tap
+// "Sign in with Google" - nothing to paste. A web config is an identifier, not a
+// secret: firestore.rules is what protects the data. A config pasted in Setup
+// still wins on that device. null = the pre-circles behaviour (paste required).
+const HEBE_FB_CONFIG = null;
+// Local testing only: the Firebase emulators, switched on per browser with
+// localStorage.hebe_emu = '1'. Inert anywhere but localhost.
+function fbEmulator(){
+  try{ return /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && localStorage.getItem('hebe_emu')==='1'; }
+  catch(e){ return false; }
+}
+// Load Firebase at boot only for someone who already uses it: a pasted config
+// (as before) or a previous sign-in on this device. Everyone else fetches nothing
+// until they tap Sign in.
+function fbAutoInit(){
+  if((S.settings.fbConfig||'').trim()) return true;
+  try{ return localStorage.getItem('hebe_fb_on')==='1'; }catch(e){ return false; }
+}
 function parseFbConfig(){
-  const raw=(S.settings.fbConfig||'').trim(); if(!raw) return null;
+  if(fbEmulator()) return { apiKey:'demo-key', authDomain:'localhost', projectId:'demo-hebe' };
+  const raw=(S.settings.fbConfig||'').trim(); if(!raw) return HEBE_FB_CONFIG;
   try{
     const jsonish = raw.replace(/^[^{]*\{/s,'{').replace(/\}[^}]*$/s,'}').replace(/([,{]\s*)([A-Za-z0-9_]+)\s*:/g,'$1"$2":').replace(/'/g,'"').replace(/,\s*\}/g,'}');
     return JSON.parse(jsonish);
@@ -2123,11 +2147,14 @@ async function initFirebase(){
     await loadScript('https://www.gstatic.com/firebasejs/'+v+'/firebase-auth-compat.js');
     await loadScript('https://www.gstatic.com/firebasejs/'+v+'/firebase-firestore-compat.js');
     S.fb.app = firebase.initializeApp(cfg);
+    if(fbEmulator()) firebase.auth().useEmulator('http://127.0.0.1:9099');
     S.fb.db = firebase.firestore();
+    if(fbEmulator()) S.fb.db.useEmulator('127.0.0.1', 8080);
     firebase.auth().onAuthStateChanged(async u=>{
       S.fb.user=u;
       if(u){ await pullCloud(); setSync('synced'); } else setSync('local');
-      if(S.page==='setup') render();
+      circlesAuthChanged(u);
+      if(S.page==='setup'||S.page==='circle') render();
     });
   }catch(e){ console.warn(e); setSync('error'); toast('Firebase init failed — check config'); }
 }
@@ -2196,6 +2223,170 @@ function cloudPush(date){
       pushQ.clear(); setSync('synced');
     }catch(e){ console.warn(e); setSync('error'); }
   },900);
+}
+/* ---------- CIRCLES · data layer - firestore.rules is the source of truth ----------
+   circles/{cid}               { name, createdBy, createdAt, inviteCode, seasonStart,
+                                 seasonEnd, memberCount, lastRemoved? }
+   circles/{cid}/members/{uid} { displayName, joinedAt, showScore, inviteCode }
+   circles/{cid}/cards/{uid}   seasonCard() - readable only by current members
+   inviteCodes/{code}          { cid, name } - fetched one at a time, never listed
+   users/{uid}.circles         my circle ids; owner-only like the rest of users/{uid}
+   Every membership change is ONE batch so the rules can check it whole. Joining
+   bumps the count (capped at 12); leaving deletes the card and the row together,
+   so a person is off the board the moment the write lands. Raw days never leave
+   users/{uid}/days - a card is built locally and only the card is written. ------ */
+const CIRCLE_MAX = 12, CIRCLE_MINE_MAX = 10, SEASON0_DAYS = 28;
+const CIRCLES = { ids:null, meta:{}, board:{}, open:null, pendingJoin:null };
+function circlesOn(){ return !!(S.fb.user && S.fb.db); }
+function circleRef(cid){ return S.fb.db.collection('circles').doc(cid); }
+// 20 characters from a 32-symbol alphabet (no l/o/0/1): 100 bits, no modulo bias.
+function newInviteCode(){
+  const a = 'abcdefghijkmnpqrstuvwxyz23456789', b = new Uint8Array(20);
+  crypto.getRandomValues(b);
+  return Array.from(b, x=> a[x % 32]).join('');
+}
+// First name + last initial by default; editable per circle.
+function defaultDisplayName(){
+  const full = (S.fb.user && S.fb.user.displayName) || S.settings.name || '';
+  const p = full.trim().split(/\s+/).filter(Boolean);
+  if(!p.length) return t('ci_me');
+  return (p.length>1 ? p[0]+' '+p[p.length-1].charAt(0).toUpperCase()+'.' : p[0]).slice(0,40);
+}
+async function circleIds(){
+  if(CIRCLES.ids) return CIRCLES.ids;
+  const snap = await S.fb.db.collection('users').doc(S.fb.user.uid).get();
+  const v = snap.exists ? snap.data().circles : null;
+  CIRCLES.ids = Array.isArray(v) ? v.slice() : [];
+  return CIRCLES.ids;
+}
+async function saveCircleIds(ids){
+  CIRCLES.ids = ids.slice();
+  await S.fb.db.collection('users').doc(S.fb.user.uid).set({ circles: CIRCLES.ids }, { merge:true });
+}
+async function createCircle(name, seasonStart, seasonEnd){
+  const ids = await circleIds();
+  if(ids.length >= CIRCLE_MINE_MAX) throw new Error(t('ci_errMine', CIRCLE_MINE_MAX));
+  const db = S.fb.db, uid = S.fb.user.uid, ref = db.collection('circles').doc(), code = newInviteCode(), now = Date.now();
+  const b = db.batch();
+  b.set(ref, { name, createdBy:uid, createdAt:now, inviteCode:code, seasonStart, seasonEnd, memberCount:1 });
+  b.set(ref.collection('members').doc(uid), { displayName:defaultDisplayName(), joinedAt:now, showScore:false, inviteCode:code });
+  b.set(db.collection('inviteCodes').doc(code), { cid:ref.id, name });
+  await b.commit();
+  await saveCircleIds(ids.concat(ref.id));
+  await publishCard(ref.id);
+  return ref.id;
+}
+async function resolveInvite(code){
+  const s = await S.fb.db.collection('inviteCodes').doc(code).get();
+  return s.exists ? Object.assign({ code }, s.data()) : null;
+}
+async function joinCircle(code){
+  const inv = await resolveInvite(code);
+  if(!inv) throw new Error(t('ci_errLink'));
+  const ids = await circleIds(), db = S.fb.db, uid = S.fb.user.uid, ref = circleRef(inv.cid);
+  // Already a member (another device, or a second tap on the link)? Only members can read it.
+  let already = false;
+  try{ already = (await ref.get()).exists; }catch(e){ already = false; }
+  if(!already){
+    if(ids.length >= CIRCLE_MINE_MAX) throw new Error(t('ci_errMine', CIRCLE_MINE_MAX));
+    const b = db.batch();
+    b.set(ref.collection('members').doc(uid), { displayName:defaultDisplayName(), joinedAt:Date.now(), showScore:false, inviteCode:code });
+    b.update(ref, { memberCount: firebase.firestore.FieldValue.increment(1) });
+    try{ await b.commit(); }catch(e){ throw new Error(t('ci_errJoin')); }
+  }
+  if(!ids.includes(inv.cid)) await saveCircleIds(ids.concat(inv.cid));
+  await publishCard(inv.cid);
+  return inv.cid;
+}
+async function leaveCircle(cid){
+  const db = S.fb.db, uid = S.fb.user.uid, ref = circleRef(cid);
+  const c = (await ref.get()).data();
+  const b = db.batch();
+  b.delete(ref.collection('cards').doc(uid));
+  b.delete(ref.collection('members').doc(uid));
+  if((c.memberCount||1) <= 1){ b.delete(ref); b.delete(db.collection('inviteCodes').doc(c.inviteCode)); }
+  else b.update(ref, { memberCount: firebase.firestore.FieldValue.increment(-1), lastRemoved: uid });
+  await b.commit();
+  await saveCircleIds((await circleIds()).filter(x=> x!==cid));
+  delete CIRCLES.meta[cid]; delete CIRCLES.board[cid];
+  if(CIRCLES.open===cid) CIRCLES.open = null;
+}
+async function publishCard(cid){
+  const uid = S.fb.user.uid, ref = circleRef(cid);
+  const [cs, ms] = await Promise.all([ref.get(), ref.collection('members').doc(uid).get()]);
+  if(!cs.exists || !ms.exists) return null;
+  const c = Object.assign({ id:cid }, cs.data()); CIRCLES.meta[cid] = c;
+  const card = seasonCard(c.seasonStart, c.seasonEnd, !!ms.data().showScore);
+  await ref.collection('cards').doc(uid).set(card);
+  return card;
+}
+let publishT = null;
+function schedulePublishCards(){
+  if(!circlesOn()) return;
+  clearTimeout(publishT); publishT = setTimeout(publishAllCards, 1500);
+}
+async function publishAllCards(){
+  if(!circlesOn()) return;
+  try{
+    for(const cid of await circleIds()){
+      try{ await publishCard(cid); }catch(e){ console.warn('circle card not published', cid, e.message); }
+    }
+  }catch(e){ console.warn(e); }
+}
+// Opting in (or out) writes the member row and the card in one batch: the rules
+// refuse a score without the opt-in, and refuse an opt-out that leaves one up.
+async function setShowScore(cid, on){
+  const db = S.fb.db, uid = S.fb.user.uid, ref = circleRef(cid);
+  const c = CIRCLES.meta[cid] || Object.assign({ id:cid }, (await ref.get()).data());
+  const b = db.batch();
+  b.update(ref.collection('members').doc(uid), { showScore: !!on });
+  b.set(ref.collection('cards').doc(uid), seasonCard(c.seasonStart, c.seasonEnd, !!on));
+  await b.commit();
+}
+async function setCircleDisplayName(cid, name){
+  const nm = String(name||'').trim().slice(0,40);
+  if(!nm) return;
+  await circleRef(cid).collection('members').doc(S.fb.user.uid).update({ displayName: nm });
+}
+// My circles, pruning any I can no longer read (I left elsewhere, or it closed).
+async function loadMyCircles(){
+  const ids = await circleIds(), keep = [];
+  for(const cid of ids){
+    try{ const s = await circleRef(cid).get(); if(s.exists){ CIRCLES.meta[cid] = Object.assign({ id:cid }, s.data()); keep.push(cid); } }
+    catch(e){ /* no longer a member */ }
+  }
+  if(keep.length !== ids.length) await saveCircleIds(keep);
+  return keep.map(id=> CIRCLES.meta[id]);
+}
+// Season 0 board: ranked on consistency, never on the score. Ties (same whole
+// percent) share a rank. Under SEASON_RANK_MIN confirmed days you are listed,
+// not ranked - "getting started" - because nobody should win on three days.
+function rankBoard(rows){
+  const pct = r=> Math.round(r.card.consistency*100);
+  const nm = r=> (r.member && r.member.displayName) || '';
+  const ranked = rows.filter(r=> r.card && r.card.confirmedDays>=SEASON_RANK_MIN && r.card.consistency!=null)
+    .sort((a,b)=> pct(b)-pct(a) || b.card.confirmedDays-a.card.confirmedDays || nm(a).localeCompare(nm(b)));
+  let prev = null, rank = 0;
+  ranked.forEach((r,i)=>{ if(pct(r)!==prev){ rank = i+1; prev = pct(r); } r.rank = rank; });
+  const rest = rows.filter(r=> !ranked.includes(r))
+    .sort((a,b)=> ((b.card&&b.card.confirmedDays)||0)-((a.card&&a.card.confirmedDays)||0) || nm(a).localeCompare(nm(b)));
+  rest.forEach(r=> r.rank = null);
+  return ranked.concat(rest);
+}
+async function loadBoard(cid){
+  const ref = circleRef(cid);
+  const [cs, ms, cards] = await Promise.all([ref.get(), ref.collection('members').get(), ref.collection('cards').get()]);
+  const c = Object.assign({ id:cid }, cs.data()); CIRCLES.meta[cid] = c;
+  const byUid = {}; cards.forEach(d=> byUid[d.id] = d.data());
+  const rows = []; ms.forEach(d=> rows.push({ uid:d.id, member:d.data(), card:byUid[d.id]||null, me: d.id===S.fb.user.uid }));
+  CIRCLES.board[cid] = { circle:c, rows:rankBoard(rows), at:Date.now() };
+  return CIRCLES.board[cid];
+}
+function circlesAuthChanged(u){
+  CIRCLES.ids = null; CIRCLES.meta = {}; CIRCLES.board = {};
+  try{ if(u) localStorage.setItem('hebe_fb_on','1'); else localStorage.removeItem('hebe_fb_on'); }catch(e){}
+  if(!u){ CIRCLES.open = null; if(S.page==='circle') S.page = 'setup'; return; }
+  schedulePublishCards();
 }
 function setSync(s){
   S.fb.status=s;
@@ -4705,7 +4896,7 @@ applyTheme();
 ensureDay(S.date);
 render();
 setSync('local');
-if(parseFbConfig()) initFirebase();
+if(parseFbConfig() && fbAutoInit()) initFirebase();
 if(!S.onboarded) showOnboarding();
 </script>
 </body>
