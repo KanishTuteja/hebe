@@ -175,6 +175,13 @@ nav.bottom{display:none}
 .spin{display:inline-block;animation:spin 1s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 
+/* ---- usual meals ---- */
+.mealList{display:flex;flex-direction:column;gap:7px;margin-top:11px}
+.mealRow{display:flex;align-items:center;gap:9px;flex-wrap:wrap;background:var(--card2);border-radius:10px;padding:9px 12px}
+.mealRow .mn{flex:1;min-width:120px;font-size:13px}
+.mealRow .mn .sub2{font-size:11px;color:var(--text2);margin-top:2px;font-weight:400}
+.mealRow .ms{font-size:15px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--teal);white-space:nowrap}
+.mealRow .ms i{font-size:10px;font-weight:600;color:var(--text3);font-style:normal}
 /* ---- provenance ---- */
 .provtag{font-size:10px;letter-spacing:.03em;font-weight:700;text-transform:uppercase;padding:2px 7px;border-radius:999px;border:1px solid var(--line2);color:var(--text2);white-space:nowrap;cursor:help}
 .provtag.sensor{color:var(--purple-dk);border-color:var(--purple);background:var(--purple-bg)}
@@ -433,6 +440,8 @@ let S = {
   onboarded:true,
   templates: JSON.parse(JSON.stringify(TEMPLATE_DEFAULTS)),
   protocols: [],
+  meals: {},                                                // usual meals, by id
+  plan: { mealTpl:{ weekday:[], weekend:[] }, weeks:{} },   // the week plan
   lastWorkoutType:'core',
   fb:{ app:null, db:null, user:null, status:'local' },
   coachCache:{},
@@ -461,6 +470,8 @@ function loadLocal(){
   // Owner keeps the weekend-fasting protocol default; guests start with none.
   try{ const p = JSON.parse(localStorage.getItem('hebe_protocols')||'null'); S.protocols = p || (S.onboarded ? defaultProtocols() : []); }catch(e){ S.protocols = S.onboarded?defaultProtocols():[]; }
   try{ S.lastWorkoutType = localStorage.getItem('hebe_lastwt')||'core'; }catch(e){}
+  try{ const mm = JSON.parse(localStorage.getItem('hebe_meals')||'null'); if(mm) S.meals = mm; }catch(e){}
+  try{ const pl = JSON.parse(localStorage.getItem('hebe_plan')||'null'); if(pl) S.plan = Object.assign(S.plan, pl); }catch(e){}
   if(!S.settings.apiKey) S.settings.apiKey = DEFAULT_API_KEY;
 }
 function persist(){
@@ -469,6 +480,8 @@ function persist(){
   localStorage.setItem('hebe_templates', JSON.stringify(S.templates));
   localStorage.setItem('hebe_protocols', JSON.stringify(S.protocols));
   localStorage.setItem('hebe_lastwt', S.lastWorkoutType);
+  localStorage.setItem('hebe_meals', JSON.stringify(S.meals||{}));
+  localStorage.setItem('hebe_plan', JSON.stringify(S.plan||{}));
   if(S.onboarded) localStorage.setItem('hebe_onboarded','1');
 }
 
@@ -1194,6 +1207,17 @@ en:{
  pv_line:"Provenance", pv_explain:"A self-reported score and a sensor-backed score are not the same claim. HEBE shows which one you are looking at, always, and will keep showing it when device import arrives.",
  sb_floor:"every lever near its floor", sb_most:"most levers working for you", sb_ahead:"ahead of neutral",
  sb_neutral:"about neutral", sb_few:"a few levers are costing you", sb_room:"most levers have room",
+ um_title:"Usual meals", um_saveToday:"Save today\u2019s {0} items as a meal",
+ um_saveHint:"Log a meal below, then save it here", um_untitled:"Untitled meal",
+ um_empty:"Save a meal once and you can plan with it forever. Log the food below the way you normally would, then tap Save \u2014 HEBE scores it once, locally, and remembers it.",
+ um_items:"items", um_protein:"protein", um_usedIn:"in {0} unreviewed days", um_wholeFood:"whole food",
+ um_rename:"Rename", um_delete:"Delete", um_namePrompt:"Name this meal",
+ um_renamePrompt:"New name for this meal",
+ um_delConfirm:"Delete this meal? It is used in {0} unreviewed planned days, which will change.",
+ um_delConfirm0:"Delete this meal?",
+ um_renameNote:"Editing a meal updates your unreviewed days too. Confirmed days keep what you logged.",
+ um_saved:"Saved as a usual meal", um_deleted:"Meal deleted",
+ um_foot:"Scored once when you save it, by the same local scorer that scored the food \u2014 no API key, no internet. Editing a meal updates your unreviewed days too; confirmed days keep the snapshot you logged.",
  nutToday:"Nutrition today", notInAge:"tracked alongside · not in the age",
  ofNutrients:"of {0} nutrients at target", furthestShort:"Furthest short:",
  allAtTarget:"Every nutrient at target today.",
@@ -1298,6 +1322,17 @@ fr:{
  sb_floor:"chaque levier proche de son plancher", sb_most:"la plupart des leviers travaillent pour toi",
  sb_ahead:"au-dessus du neutre", sb_neutral:"environ neutre", sb_few:"quelques leviers te coûtent",
  sb_room:"la plupart des leviers ont de la marge",
+ um_title:"Repas habituels", um_saveToday:"Enregistrer les {0} aliments du jour comme repas",
+ um_saveHint:"Enregistre un repas ci-dessous, puis sauvegarde-le ici", um_untitled:"Repas sans nom",
+ um_empty:"Enregistre un repas une fois et tu pourras le planifier pour toujours. Saisis les aliments ci-dessous comme d\u2019habitude, puis touche Enregistrer \u2014 HEBE le note une seule fois, en local, et s\u2019en souvient.",
+ um_items:"aliments", um_protein:"prot\u00e9ines", um_usedIn:"dans {0} jours non revus", um_wholeFood:"aliment brut",
+ um_rename:"Renommer", um_delete:"Supprimer", um_namePrompt:"Nom de ce repas",
+ um_renamePrompt:"Nouveau nom pour ce repas",
+ um_delConfirm:"Supprimer ce repas ? Il est utilis\u00e9 dans {0} jours planifi\u00e9s non revus, qui vont changer.",
+ um_delConfirm0:"Supprimer ce repas ?",
+ um_renameNote:"Modifier un repas met aussi \u00e0 jour tes jours non revus. Les jours confirm\u00e9s gardent ce que tu as enregistr\u00e9.",
+ um_saved:"Enregistr\u00e9 comme repas habituel", um_deleted:"Repas supprim\u00e9",
+ um_foot:"Not\u00e9 une seule fois \u00e0 l\u2019enregistrement, par le m\u00eame moteur local qui a not\u00e9 les aliments \u2014 sans cl\u00e9 API, sans internet. Modifier un repas met aussi \u00e0 jour tes jours non revus ; les jours confirm\u00e9s gardent l\u2019instantan\u00e9 enregistr\u00e9.",
  nutToday:"Nutrition du jour", notInAge:"suivi en parallèle · pas dans l’âge",
  ofNutrients:"sur {0} nutriments à l’objectif", furthestShort:"Les plus loin :",
  allAtTarget:"Tous les nutriments à l’objectif aujourd’hui.",
@@ -2082,6 +2117,8 @@ async function pullCloud(){
   if(meta.exists){ const md=meta.data();
     if(md.templates && (!localStorage.getItem('hebe_templates'))) S.templates=md.templates;
     if(md.protocols && (!localStorage.getItem('hebe_protocols'))) S.protocols=md.protocols;
+    if(md.meals && !Object.keys(S.meals||{}).length) S.meals = md.meals;
+    if(md.plan && !Object.keys(planWeeks()).length) S.plan = Object.assign(S.plan||{}, md.plan);
     // pull synced settings (API key, model, targets, dob, name) — never overwrite
     // this device's own Firebase config
     if(md.settings){ const s=md.settings; delete s.fbConfig;
@@ -2106,7 +2143,8 @@ function pushSettings(){
     try{
       const col=S.fb.db.collection('users').doc(S.fb.user.uid);
       const syncSettings=Object.assign({},S.settings); delete syncSettings.fbConfig;
-      await col.set({templates:S.templates, protocols:S.protocols, settings:syncSettings},{merge:true});
+      await col.set({templates:S.templates, protocols:S.protocols, settings:syncSettings,
+                     meals:S.meals||{}, plan:S.plan||{}},{merge:true});
       setSync('synced');
     }catch(e){ console.warn(e); setSync('error'); }
   },800);
@@ -2121,7 +2159,8 @@ function cloudPush(date){
       // sync settings too (so API key + prefs follow you to every device),
       // minus fbConfig which is device-local by design
       const syncSettings = Object.assign({}, S.settings); delete syncSettings.fbConfig;
-      await col.set({templates:S.templates, protocols:S.protocols, settings:syncSettings},{merge:true});
+      await col.set({templates:S.templates, protocols:S.protocols, settings:syncSettings,
+                     meals:S.meals||{}, plan:S.plan||{}},{merge:true});
       pushQ.clear(); setSync('synced');
     }catch(e){ console.warn(e); setSync('error'); }
   },900);
@@ -2532,6 +2571,8 @@ function renderFuel(){
     + '<div class="chartbox mt" style="height:130px"><canvas id="chProtein"></canvas></div><div class="sub" style="font-size:11px">'+t('proteinVs',S.settings.proteinTarget)+'</div></div>';
   h += '</div>';
 
+  h += usualMealsHTML();
+
   h += '<div class="grid2 mt fade">';
   h += '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><h3>'+t('todaysFoods')+' ('+d.foods.length+')</h3>'
     + (avg!=null?'<span class="scorepill" style="background:'+scoreCol(avg)+'22;color:'+scoreCol(avg)+'">'+t('avg')+' '+avg+'</span>':'')+'</div><div style="margin-top:10px">';
@@ -2791,6 +2832,169 @@ function scoreMovement(date){
 // Withhold it until the age's own baseline gate passes.
 function scoreReady(){ return confirmedDates().length >= SCORE_MATURE_DAYS; }
 
+
+/* ---------- USUAL MEALS + THE PLAN READER (HEBE_WEEKLY_MODE.md 1, 9.1) -----
+   Nobody logs every day, so food gets planned instead of recalled. A usual meal
+   is a NAMED SNAPSHOT OF FOOD ENTRIES - the exact objects `foods[]` already
+   holds, produced by the Fuel UI that already exists.
+
+   That choice is the whole design: no new entry screen, no new scorer, no new
+   food shape. You log a meal the way you log food today, tap "Save as a usual
+   meal", and every downstream reader - nutritionCoverage, dayNutrition, the
+   Food quality lever, the Fuel list - keeps working, because the entries are
+   byte-identical to logged ones.
+
+   Scored once, by the scorer that produced the entries (the local heuristic
+   when there is no API key, which is every stranger's case). Never re-scored.
+
+   MEAL EDITS ARE RETROACTIVE inside the 8-day horizon (owner decision, 22 Sept
+   2026): planned days are derived, so editing a meal changes every unreviewed
+   day that uses it. The UI says so out loud. Confirmed days keep their
+   snapshot, because confirming writes the foods onto the day.
+   ------------------------------------------------------------------------- */
+
+// The review horizon. 8, not 14: the window is 21 days, so a 14-day horizon
+// would let two thirds of the headline number be intention rather than record.
+// 8 caps it at 38% and matches both the weekly rhythm and the circles rule.
+const PLAN_HORIZON = 8;
+
+function usualMeals(){ return S.meals || (S.meals = {}); }
+function usualMealList(){
+  return Object.values(usualMeals()).sort((a,b)=> (a.name||'').localeCompare(b.name||''));
+}
+function mealId(){ return 'm'+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+
+// Mean of the entries that carry a quality score. Whole foods deliberately
+// carry none (NOVA 1 by definition), so this measures the processed part - the
+// same rule the daily food average already follows.
+function mealScore(meal){
+  const sc = (meal.foods||[]).filter(f=>typeof f.score==='number').map(f=>f.score);
+  return sc.length ? Math.round(sc.reduce((a,b)=>a+b,0)/sc.length) : null;
+}
+// Unknown is not zero (handoff 10, nutrition rule 2). Named-only entries carry
+// no weight and no macros, so a meal built from them reports null rather than a
+// fabricated 0 that would read as "this meal has no protein".
+function mealMacros(meal){
+  let kcal=null, protein=null;
+  (meal.foods||[]).forEach(f=>{
+    const g = f.grams||0;
+    if(f.kcal!=null)    kcal    = (kcal||0)    + (g? f.kcal*g/100    : f.kcal);
+    if(f.protein!=null) protein = (protein||0) + (g? f.protein*g/100 : f.protein);
+  });
+  return { kcal: kcal==null? null : Math.round(kcal),
+           protein: protein==null? null : Math.round(protein) };
+}
+function saveUsualMeal(name, foods){
+  const list = (foods||[]).map(f=>Object.assign({}, f));   // snapshot, not a reference
+  if(!list.length) return null;
+  const id = mealId();
+  const meal = { id, name:(name||'').trim() || t('um_untitled'), foods:list,
+                 createdAt:Date.now(), updatedAt:Date.now() };
+  meal.score = mealScore(meal);
+  const mac = mealMacros(meal); meal.kcal = mac.kcal; meal.protein = mac.protein;
+  usualMeals()[id] = meal;
+  persist(); pushSettings();
+  return meal;
+}
+function updateUsualMeal(id, patch){
+  const m = usualMeals()[id]; if(!m) return null;
+  Object.assign(m, patch, { updatedAt:Date.now() });
+  m.score = mealScore(m);
+  const mac = mealMacros(m); m.kcal = mac.kcal; m.protein = mac.protein;
+  persist(); pushSettings();
+  return m;
+}
+function deleteUsualMeal(id){
+  if(!usualMeals()[id]) return;
+  delete usualMeals()[id];
+  // A deleted meal must not linger in the plan, or plannedMealIdsFor would keep
+  // filtering it out silently on every read.
+  const weeks = planWeeks();
+  Object.keys(weeks).forEach(wk=> Object.keys(weeks[wk]).forEach(dt=>{
+    weeks[wk][dt] = (weeks[wk][dt]||[]).filter(x=>x!==id); }));
+  const tpl = planMealTpl();
+  tpl.weekday = (tpl.weekday||[]).filter(x=>x!==id);
+  tpl.weekend = (tpl.weekend||[]).filter(x=>x!==id);
+  persist(); pushSettings();
+}
+
+// ---- the plan reader (the planner UI lands in the next commit) ----
+// Weeks are keyed by their Monday, which sorts correctly and needs no ISO-week
+// arithmetic.
+function weekKey(date){
+  const d = new Date(date+'T12:00:00');
+  const dow = (d.getDay()+6)%7;             // Mon=0 .. Sun=6
+  d.setDate(d.getDate()-dow);
+  return dstr(d);
+}
+function planWeeks(){ if(!S.plan) S.plan={}; return S.plan.weeks || (S.plan.weeks = {}); }
+function planMealTpl(){ if(!S.plan) S.plan={}; return S.plan.mealTpl || (S.plan.mealTpl = {weekday:[],weekend:[]}); }
+
+// Meal ids planned for a date: the week's explicit plan if there is one, else
+// the meal template for that day type. A fasting-protocol day is empty by
+// construction, the same way ensureDay already zeroes its protein.
+function plannedMealIdsFor(date){
+  const proto = activeProtocol(date);
+  if(proto && proto.type==='fasting') return [];
+  const wk = planWeeks()[weekKey(date)];
+  if(wk && wk[date]) return wk[date].filter(id=>usualMeals()[id]);
+  const tpl = planMealTpl()[templateFor(date)] || [];
+  return tpl.filter(id=>usualMeals()[id]);
+}
+// Dates inside the horizon with no confirmed record. The generator IS the
+// expiry: outside PLAN_HORIZON nothing is produced, so a stale plan cannot keep
+// propping the number up and no sweep is needed.
+function plannedDatesRaw(before){
+  const end = before || todayStr(), out = [];
+  for(let i=0;i<PLAN_HORIZON;i++){
+    const dt = new Date(end+'T12:00:00'); dt.setDate(dt.getDate()-i);
+    const k = dstr(dt);
+    if(k > todayStr()) continue;                        // never plan the future in
+    if(S.days[k] && S.days[k].updatedAt>0) continue;    // confirmed always wins
+    out.push(k);
+  }
+  return out.reverse();
+}
+// How many unreviewed days inside the horizon currently use this meal. Shown on
+// edit and delete so the retroactive effect is stated, never silent.
+function mealPlannedUses(id){
+  let n = 0;
+  plannedDatesRaw().forEach(k=>{ if(plannedMealIdsFor(k).indexOf(id)>=0) n++; });
+  return n;
+}
+
+function usualMealsHTML(){
+  const list = usualMealList();
+  const d = ensureDay(S.date);
+  const n = (d.foods||[]).length;
+  let h = '<div class="card mt fade" id="usualMealsCard">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">'
+    +   '<h3>'+t('um_title')+'</h3>'
+    +   (n ? '<button class="btn primary" id="umSave" style="font-size:12px;padding:6px 12px">'+t('um_saveToday', n)+'</button>'
+          : '<span class="sub2">'+t('um_saveHint')+'</span>')
+    + '</div>';
+  if(!list.length){
+    h += '<div class="sub" style="margin-top:9px;line-height:1.55">'+t('um_empty')+'</div>';
+    return h + '</div>';
+  }
+  h += '<div class="mealList">';
+  list.forEach(m=>{
+    const uses = mealPlannedUses(m.id);
+    h += '<div class="mealRow">'
+      + '<div class="mn"><b>'+esc(m.name)+'</b>'
+      +   '<div class="sub2">'+(m.foods||[]).length+' '+t('um_items')
+      +     (m.protein? ' \u00b7 '+m.protein+'g '+t('um_protein'):'')
+      +     (m.kcal? ' \u00b7 '+m.kcal+' kcal':'')
+      +     (uses? ' \u00b7 '+t('um_usedIn', uses):'')+'</div></div>'
+      + '<span class="ms">'+(m.score!=null? m.score+'<i>/100</i>' : '<i>'+t('um_wholeFood')+'</i>')+'</span>'
+      + '<button class="btn" data-mealren="'+m.id+'" style="font-size:11px;padding:4px 9px">'+t('um_rename')+'</button>'
+      + '<button class="btn" data-mealdel="'+m.id+'" style="font-size:11px;padding:4px 9px">'+t('um_delete')+'</button>'
+      + '</div>';
+  });
+  h += '</div>';
+  h += '<div class="sub" style="font-size:10.5px;margin-top:10px;line-height:1.45">'+t('um_foot')+'</div>';
+  return h + '</div>';
+}
 
 /* ---------- provenance (HEBE_SCORE_V2.md §2.3, D3 un-deferred) -------------
    Every day carries a source, and the score shows it. This has to exist before
@@ -3712,6 +3916,18 @@ document.addEventListener('click', e=>{
     // shapes are exclusive. Two palms of salmon is one entry; the rice beside
     // it is a separate cupped-hand entry.
     const n = portionSel[k]||0; resetPortions(); portionSel[k]=n+1; render(); return; }
+  const mre = e.target.closest('[data-mealren]');
+  if(mre){ const m = usualMeals()[mre.dataset.mealren]; if(!m) return;
+    const uses = mealPlannedUses(m.id);
+    const nm = prompt(t('um_renamePrompt')+(uses? '\n\n'+t('um_renameNote'):''), m.name);
+    if(nm && nm.trim()){ updateUsualMeal(m.id, { name:nm.trim() }); render(); }
+    return; }
+  const mdl = e.target.closest('[data-mealdel]');
+  if(mdl){ const m = usualMeals()[mdl.dataset.mealdel]; if(!m) return;
+    const uses = mealPlannedUses(m.id);
+    if(!confirm(uses ? t('um_delConfirm', uses) : t('um_delConfirm0'))) return;
+    deleteUsualMeal(m.id); toast(t('um_deleted')); render();
+    return; }
   const bsys = e.target.closest('[data-bsys]');
   if(bsys){ if(BODY_SYSTEM[bsys.dataset.bsys]){ bodySys=bsys.dataset.bsys; bodyPick=null; bodyOffset=0; render(); } return; }
   const bvw = e.target.closest('[data-bview]');
@@ -3723,6 +3939,13 @@ document.addEventListener('click', e=>{
   switch(t.id){
     case 'obDone': completeOnboarding(); break;
     case 'obSkip': if(!confirm('Skip the walkthrough? HEBE will treat this device as already set up, and you can import a backup from Setup. To get the walkthrough back later: Setup, then Reset & re-onboard.')) break; onboardingOpen=false; S.onboarded=true; localStorage.setItem('hebe_onboarded','1'); ob=null; S.page='setup'; hideModal(); render(); break;
+    case 'umSave': {
+      const dd = ensureDay(S.date);
+      const nm = prompt(t('um_namePrompt'), fmtDate(S.date));
+      if(nm===null) break;
+      // Snapshot only - saving a usual meal never writes to the day.
+      if(saveUsualMeal(nm, dd.foods)){ toast(t('um_saved')); render(); }
+      break; }
     case 'bmPlay': bodyPlayToggle(); break;
     case 'obStart': if(ob){ ob.step=1; obRender(); } break;
     case 'obNext': if(ob) obNext(); break;
