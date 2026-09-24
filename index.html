@@ -182,6 +182,16 @@ nav.bottom{display:none}
 .mealRow .mn .sub2{font-size:11px;color:var(--text2);margin-top:2px;font-weight:400}
 .mealRow .ms{font-size:15px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--teal);white-space:nowrap}
 .mealRow .ms i{font-size:10px;font-weight:600;color:var(--text3);font-style:normal}
+/* ---- week planner ---- */
+.planWeek{display:flex;flex-direction:column;gap:6px;margin-top:11px}
+.planDay{background:var(--card2);border-radius:10px;padding:8px 11px;margin-top:6px}
+.planDay.today{outline:1px solid var(--teal)}
+.planDay .pdh{display:flex;align-items:baseline;gap:7px;font-size:12.5px}
+.planDay .pdh .pdt{margin-left:auto;font-size:10px;letter-spacing:.04em;text-transform:uppercase;font-weight:700;color:var(--text3)}
+.planDay .pdslots{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.planDay .pdfast{margin-top:4px;font-size:11.5px;color:var(--text2)}
+.planSel{font-family:inherit;font-size:12px;padding:5px 7px;border-radius:8px;border:1px solid var(--line2);background:var(--card);color:var(--text);max-width:100%;min-width:0;flex:1 1 140px}
+.planSel.add{color:var(--text2);border-style:dashed}
 /* ---- provenance ---- */
 .provtag{font-size:10px;letter-spacing:.03em;font-weight:700;text-transform:uppercase;padding:2px 7px;border-radius:999px;border:1px solid var(--line2);color:var(--text2);white-space:nowrap;cursor:help}
 .provtag.sensor{color:var(--purple-dk);border-color:var(--purple);background:var(--purple-bg)}
@@ -1208,8 +1218,8 @@ en:{
  sb_floor:"every lever near its floor", sb_most:"most levers working for you", sb_ahead:"ahead of neutral",
  sb_neutral:"about neutral", sb_few:"a few levers are costing you", sb_room:"most levers have room",
  um_title:"Usual meals", um_saveToday:"Save today\u2019s {0} items as a meal",
- um_saveHint:"Log a meal below, then save it here", um_untitled:"Untitled meal",
- um_empty:"Save a meal once and you can plan with it forever. Log the food below the way you normally would, then tap Save \u2014 HEBE scores it once, locally, and remembers it.",
+ um_saveHint:"Log a meal above, then save it here", um_untitled:"Untitled meal",
+ um_empty:"Save a meal once and you can plan with it forever. Log the food above the way you normally would, then tap Save \u2014 HEBE scores it once, locally, and remembers it.",
  um_items:"items", um_protein:"protein", um_usedIn:"in {0} unreviewed days", um_wholeFood:"whole food",
  um_rename:"Rename", um_delete:"Delete", um_namePrompt:"Name this meal",
  um_renamePrompt:"New name for this meal",
@@ -1218,6 +1228,14 @@ en:{
  um_renameNote:"Editing a meal updates your unreviewed days too. Confirmed days keep what you logged.",
  um_saved:"Saved as a usual meal", um_deleted:"Meal deleted",
  um_foot:"Scored once when you save it, by the same local scorer that scored the food \u2014 no API key, no internet. Editing a meal updates your unreviewed days too; confirmed days keep the snapshot you logged.",
+ pl_title:"Plan the week", pl_thisWeek:"This week", pl_nextWeek:"Next week",
+ pl_sub:"Each day starts from your meal template. Change a day only if it will be different.",
+ pl_noMeals:"Save a usual meal above and you can plan with it here. With no plan, HEBE uses your ritual templates as they are.",
+ pl_repeat:"Repeat last week", pl_useTpl:"Reset to templates", pl_repeated:"Last week copied",
+ pl_dows:"Mon,Tue,Wed,Thu,Fri,Sat,Sun", pl_fast:"fast day", pl_planned:"planned", pl_fromTpl:"from template",
+ pl_add:"+ add a meal", pl_remove:"— remove", pl_tplTitle:"Meal templates", pl_tplSub:"what an unplanned day uses",
+ pl_weekday:"Weekdays", pl_weekend:"Weekends",
+ pl_foot:"A plan is an intention, not a record. Planned days count in your own score only provisionally, and only until you review them — unreviewed days drop out after 8 days.",
  nutToday:"Nutrition today", notInAge:"tracked alongside · not in the age",
  ofNutrients:"of {0} nutrients at target", furthestShort:"Furthest short:",
  allAtTarget:"Every nutrient at target today.",
@@ -1323,8 +1341,8 @@ fr:{
  sb_ahead:"au-dessus du neutre", sb_neutral:"environ neutre", sb_few:"quelques leviers te coûtent",
  sb_room:"la plupart des leviers ont de la marge",
  um_title:"Repas habituels", um_saveToday:"Enregistrer les {0} aliments du jour comme repas",
- um_saveHint:"Enregistre un repas ci-dessous, puis sauvegarde-le ici", um_untitled:"Repas sans nom",
- um_empty:"Enregistre un repas une fois et tu pourras le planifier pour toujours. Saisis les aliments ci-dessous comme d\u2019habitude, puis touche Enregistrer \u2014 HEBE le note une seule fois, en local, et s\u2019en souvient.",
+ um_saveHint:"Enregistre un repas ci-dessus, puis sauvegarde-le ici", um_untitled:"Repas sans nom",
+ um_empty:"Enregistre un repas une fois et tu pourras le planifier pour toujours. Saisis les aliments ci-dessus comme d\u2019habitude, puis touche Enregistrer \u2014 HEBE le note une seule fois, en local, et s\u2019en souvient.",
  um_items:"aliments", um_protein:"prot\u00e9ines", um_usedIn:"dans {0} jours non revus", um_wholeFood:"aliment brut",
  um_rename:"Renommer", um_delete:"Supprimer", um_namePrompt:"Nom de ce repas",
  um_renamePrompt:"Nouveau nom pour ce repas",
@@ -1333,6 +1351,14 @@ fr:{
  um_renameNote:"Modifier un repas met aussi \u00e0 jour tes jours non revus. Les jours confirm\u00e9s gardent ce que tu as enregistr\u00e9.",
  um_saved:"Enregistr\u00e9 comme repas habituel", um_deleted:"Repas supprim\u00e9",
  um_foot:"Not\u00e9 une seule fois \u00e0 l\u2019enregistrement, par le m\u00eame moteur local qui a not\u00e9 les aliments \u2014 sans cl\u00e9 API, sans internet. Modifier un repas met aussi \u00e0 jour tes jours non revus ; les jours confirm\u00e9s gardent l\u2019instantan\u00e9 enregistr\u00e9.",
+ pl_title:"Planifier la semaine", pl_thisWeek:"Cette semaine", pl_nextWeek:"Semaine prochaine",
+ pl_sub:"Chaque jour part de ton modèle de repas. Ne change un jour que s’il sera différent.",
+ pl_noMeals:"Enregistre un repas habituel ci-dessus pour planifier ici. Sans plan, HEBE utilise tes modèles de routine tels quels.",
+ pl_repeat:"Répéter la semaine dernière", pl_useTpl:"Revenir aux modèles", pl_repeated:"Semaine dernière copiée",
+ pl_dows:"Lun,Mar,Mer,Jeu,Ven,Sam,Dim", pl_fast:"jour de jeûne", pl_planned:"planifié", pl_fromTpl:"du modèle",
+ pl_add:"+ ajouter un repas", pl_remove:"— retirer", pl_tplTitle:"Modèles de repas", pl_tplSub:"ce qu’utilise un jour non planifié",
+ pl_weekday:"En semaine", pl_weekend:"Le week-end",
+ pl_foot:"Un plan est une intention, pas un relevé. Les jours planifiés ne comptent dans ton score que provisoirement, et seulement jusqu’à ta revue — les jours non revus sortent après 8 jours.",
  nutToday:"Nutrition du jour", notInAge:"suivi en parallèle · pas dans l’âge",
  ofNutrients:"sur {0} nutriments à l’objectif", furthestShort:"Les plus loin :",
  allAtTarget:"Tous les nutriments à l’objectif aujourd’hui.",
@@ -2572,6 +2598,7 @@ function renderFuel(){
   h += '</div>';
 
   h += usualMealsHTML();
+  h += weekPlannerHTML();
 
   h += '<div class="grid2 mt fade">';
   h += '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><h3>'+t('todaysFoods')+' ('+d.foods.length+')</h3>'
@@ -2993,6 +3020,125 @@ function usualMealsHTML(){
   });
   h += '</div>';
   h += '<div class="sub" style="font-size:10.5px;margin-top:10px;line-height:1.45">'+t('um_foot')+'</div>';
+  return h + '</div>';
+}
+
+/* ---------- THE WEEK PLANNER (HEBE_WEEKLY_MODE.md 2, 9.2) ------------------
+   Fuel -> "Plan the week". Seven days, each pre-filled from the weekday or
+   weekend meal template; fasting-protocol days empty and locked; one tap to
+   repeat last week; any slot swappable for another usual meal.
+
+   Planning is optional: with no explicit plan the meal templates ARE the plan
+   (plannedMealIdsFor already falls back to them). Every edit writes to S.plan
+   only - never to a day doc - so nothing here can bump updatedAt.
+   ------------------------------------------------------------------------- */
+let planWeekOffset = 0;                      // 0 = this week, 1 = next week
+function planWeekDates(offset){
+  const mon = new Date(weekKey(todayStr())+'T12:00:00');
+  mon.setDate(mon.getDate() + 7*(offset||0));
+  const out = [];
+  for(let i=0;i<7;i++){ const d = new Date(mon); d.setDate(mon.getDate()+i); out.push(dstr(d)); }
+  return out;
+}
+function planIsFast(date){ const p = activeProtocol(date); return !!(p && p.type==='fasting'); }
+function planHasExplicit(date){ const wk = planWeeks()[weekKey(date)]; return !!(wk && wk[date]); }
+// Editing a day that still follows the template first copies the template's
+// list onto the day, so a single swap never silently drops the other meals.
+function planDayList(date){
+  const wks = planWeeks(), k = weekKey(date);
+  if(!wks[k]) wks[k] = {};
+  if(!wks[k][date]) wks[k][date] = plannedMealIdsFor(date).slice();
+  return wks[k][date];
+}
+function planSave(){ persist(); pushSettings(); }
+function setPlanSlot(date, idx, id){
+  if(planIsFast(date)) return;
+  const list = planDayList(date);
+  if(id) list[idx] = id; else list.splice(idx, 1);
+  planSave();
+}
+function addPlanSlot(date, id){
+  if(planIsFast(date) || !id) return;
+  planDayList(date).push(id); planSave();
+}
+// Copy the EFFECTIVE plan of the previous week (explicit or template) onto
+// this week. Fast days stay empty whatever last week held.
+function repeatLastWeek(offset){
+  const cur = planWeekDates(offset), prev = planWeekDates((offset||0)-1);
+  const wks = planWeeks();
+  cur.forEach((d,i)=>{
+    const k = weekKey(d); if(!wks[k]) wks[k] = {};
+    wks[k][d] = planIsFast(d) ? [] : plannedMealIdsFor(prev[i]).slice();
+  });
+  planSave();
+}
+function clearWeekPlan(offset){
+  const k = weekKey(planWeekDates(offset)[0]);
+  delete planWeeks()[k]; planSave();
+}
+function setTplSlot(kind, idx, id){
+  const tpl = planMealTpl(); const list = tpl[kind] || (tpl[kind] = []);
+  if(id) list[idx] = id; else list.splice(idx, 1);
+  planSave();
+}
+function addTplSlot(kind, id){ if(!id) return; const tpl = planMealTpl(); (tpl[kind] || (tpl[kind]=[])).push(id); planSave(); }
+
+function mealOptionsHTML(sel, withRemove){
+  return usualMealList().map(m=>'<option value="'+m.id+'"'+(m.id===sel?' selected':'')+'>'+esc(m.name)+'</option>').join('')
+    + (withRemove ? '<option value="">'+t('pl_remove')+'</option>' : '');
+}
+function weekPlannerHTML(){
+  const meals = usualMealList();
+  let h = '<div class="card mt fade" id="weekPlanCard">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">'
+    +   '<h3>'+t('pl_title')+'</h3>'
+    +   '<span style="display:flex;gap:6px">'
+    +     '<span class="chip '+(planWeekOffset===0?'on':'')+'" data-planwk="0">'+t('pl_thisWeek')+'</span>'
+    +     '<span class="chip '+(planWeekOffset===1?'on':'')+'" data-planwk="1">'+t('pl_nextWeek')+'</span></span>'
+    + '</div>';
+  if(!meals.length){
+    h += '<div class="sub" style="margin-top:9px;line-height:1.55">'+t('pl_noMeals')+'</div>';
+    return h + '</div>';
+  }
+  h += '<div class="sub" style="margin-top:4px">'+t('pl_sub')+'</div>';
+  h += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">'
+    + '<button class="btn" id="planRepeat" style="font-size:12px;padding:6px 12px">'+t('pl_repeat')+'</button>'
+    + '<button class="btn" id="planClear" style="font-size:12px;padding:6px 12px">'+t('pl_useTpl')+'</button></div>';
+  const dows = t('pl_dows').split(',');
+  h += '<div class="planWeek">';
+  planWeekDates(planWeekOffset).forEach((date, i)=>{
+    const fast = planIsFast(date), explicit = planHasExplicit(date);
+    const ids = plannedMealIdsFor(date);
+    h += '<div class="planDay'+(date===todayStr()?' today':'')+'">'
+      + '<div class="pdh"><b>'+dows[i]+' '+(+date.slice(8))+'</b>'
+      + '<span class="pdt">'+(fast ? t('pl_fast') : explicit ? t('pl_planned') : t('pl_fromTpl'))+'</span></div>';
+    if(fast){
+      const p = activeProtocol(date);
+      h += '<div class="sub2 pdfast">'+esc(p && p.name || '')+'</div>';
+    } else {
+      h += '<div class="pdslots">';
+      ids.forEach((id, idx)=>{
+        h += '<select class="planSel" data-planslot="'+date+'|'+idx+'">'+mealOptionsHTML(id, true)+'</select>';
+      });
+      h += '<select class="planSel add" data-planadd="'+date+'"><option value="">'+t('pl_add')+'</option>'+mealOptionsHTML(null,false)+'</select>';
+      h += '</div>';
+    }
+    h += '</div>';
+  });
+  h += '</div>';
+  // The meal templates - what an unplanned day falls back to.
+  h += '<details class="reveal"><summary>'+t('pl_tplTitle')+'<span class="sub2"> \u00b7 '+t('pl_tplSub')+'</span></summary>';
+  ['weekday','weekend'].forEach(kind=>{
+    const list = planMealTpl()[kind] || [];
+    h += '<div class="planDay"><div class="pdh"><b>'+t(kind==='weekday'?'pl_weekday':'pl_weekend')+'</b></div><div class="pdslots">';
+    list.filter(id=>usualMeals()[id]).forEach((id, idx)=>{
+      h += '<select class="planSel" data-tplslot="'+kind+'|'+idx+'">'+mealOptionsHTML(id, true)+'</select>';
+    });
+    h += '<select class="planSel add" data-tpladd="'+kind+'"><option value="">'+t('pl_add')+'</option>'+mealOptionsHTML(null,false)+'</select>';
+    h += '</div></div>';
+  });
+  h += '</details>';
+  h += '<div class="sub" style="font-size:10.5px;margin-top:10px;line-height:1.45">'+t('pl_foot')+'</div>';
   return h + '</div>';
 }
 
@@ -3916,6 +4062,8 @@ document.addEventListener('click', e=>{
     // shapes are exclusive. Two palms of salmon is one entry; the rice beside
     // it is a separate cupped-hand entry.
     const n = portionSel[k]||0; resetPortions(); portionSel[k]=n+1; render(); return; }
+  const pwk = e.target.closest('[data-planwk]');
+  if(pwk){ planWeekOffset = +pwk.dataset.planwk; render(); return; }
   const mre = e.target.closest('[data-mealren]');
   if(mre){ const m = usualMeals()[mre.dataset.mealren]; if(!m) return;
     const uses = mealPlannedUses(m.id);
@@ -3946,6 +4094,8 @@ document.addEventListener('click', e=>{
       // Snapshot only - saving a usual meal never writes to the day.
       if(saveUsualMeal(nm, dd.foods)){ toast(t('um_saved')); render(); }
       break; }
+    case 'planRepeat': repeatLastWeek(planWeekOffset); render(); toast(t('pl_repeated')); break;
+    case 'planClear': clearWeekPlan(planWeekOffset); render(); break;
     case 'bmPlay': bodyPlayToggle(); break;
     case 'obStart': if(ob){ ob.step=1; obRender(); } break;
     case 'obNext': if(ob) obNext(); break;
@@ -4006,6 +4156,11 @@ document.addEventListener('input', e=>{
   }
 });
 document.addEventListener('change', e=>{
+  const ds = e.target.dataset || {};
+  if(ds.planslot){ const [dt, i] = ds.planslot.split('|'); setPlanSlot(dt, +i, e.target.value||null); render(); return; }
+  if(ds.planadd){ if(e.target.value) addPlanSlot(ds.planadd, e.target.value); render(); return; }
+  if(ds.tplslot){ const [k, i] = ds.tplslot.split('|'); setTplSlot(k, +i, e.target.value||null); render(); return; }
+  if(ds.tpladd){ if(e.target.value) addTplSlot(ds.tpladd, e.target.value); render(); return; }
   if(e.target.id==='importFile') doImport(e.target.files[0]);
   if(e.target.id==='nWeight'){ const d=ensureDay(S.date); const v=parseFloat(e.target.value);
     d.weightKg=(isFinite(v)&&v>0)?v:null; touchDay(S.date); render(); return; }
