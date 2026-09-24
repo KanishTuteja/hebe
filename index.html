@@ -525,6 +525,10 @@ function ensureDay(date){
 }
 function saveDay(date){
   const d = ensureDay(date);
+  // confirmedAt is stamped ONCE, on the transition to confirmed, never on a later
+  // edit. Circles count a day only if it was confirmed within 8 days of its date,
+  // and updatedAt cannot answer that: every edit moves it. Engine never reads it.
+  if(!(d.updatedAt>0) && !d.confirmedAt) d.confirmedAt = Date.now();
   d.updatedAt = Date.now();
   recomputeAgesFrom(date);
   persist();
@@ -588,7 +592,9 @@ function fillMissedDays(){
   const missed = missedDates();
   if(!missed.length) return;
   if(!confirm('Log '+missed.length+' missed day'+(missed.length>1?'s':'')+' from your templates?\nEach one stays editable — open it from the date arrows to adjust.')) return;
-  missed.forEach(k=>{ const d=ensureDay(k); d.confirmed=true; d.backfilled=true; d.updatedAt=Date.now(); });
+  missed.forEach(k=>{ const d=ensureDay(k); d.confirmed=true; d.backfilled=true;
+    if(!(d.updatedAt>0) && !d.confirmedAt) d.confirmedAt=Date.now();   // same rule as saveDay
+    d.updatedAt=Date.now(); });
   recomputeAgesFrom(missed[0]);
   persist(); missed.forEach(cloudPush); render();
   toast(missed.length+' day'+(missed.length>1?'s':'')+' backfilled — HEBE age rebuilt');
@@ -2858,6 +2864,112 @@ function scoreMovement(date){
 // template defaults, so a confident 87 would be a number the app has not earned.
 // Withhold it until the age's own baseline gate passes.
 function scoreReady(){ return confirmedDates().length >= SCORE_MATURE_DAYS; }
+
+/* ---------- CIRCLES · SEASON 0 - the numbers a circle card carries ----------
+   HEBE_CIRCLES_DESIGN.md §3-4, as amended for Season 0 (Kanish, 24 Sept 2026):
+   - Season 0 ranks on CONSISTENCY, which works from day one. Movement is a
+     second column that fills in per person once their score has history.
+   - Only CONFIRMED days count - a daily check-in today; the weekly review later,
+     which must stamp confirmedAt the same way - and only when confirmed within
+     8 days of the date. Planned-only days never count.
+   - A lever with no input on a day leaves that lever's denominator for that day:
+     unknown is not a miss. A day you didn't log costs nothing.
+   Pure reads. Nothing here writes a day and nothing here is engine; the score it
+   quotes is the owner's own, and the engine is frozen for the season. -------- */
+const SEASON_ONTIME_DAYS = 8, SEASON_RANK_MIN = 5, SEASON_MOVE_MIN_DAYS = 7;
+const SEASON_LEVERS = ['Sleep','Training volume','Strength','Sitting','Food quality','Stress'];
+const isNum = v => typeof v==='number' && isFinite(v);
+function dayGap(a, b){ return Math.round((new Date(b+'T12:00:00') - new Date(a+'T12:00:00'))/864e5); }
+// Confirmed, and confirmed within 8 days of its own date. A legacy day with no
+// confirmedAt never counts - it predates the rule, so it cannot prove it.
+function onTimeConfirmed(k){
+  const d = S.days[k];
+  if(!d || !(d.updatedAt>0) || !d.confirmedAt) return false;
+  return dayGap(k, dstr(new Date(d.confirmedAt))) <= SEASON_ONTIME_DAYS;
+}
+function seasonDays(start, end){
+  const last = end < todayStr() ? end : todayStr();
+  return confirmedDates(last).filter(k => k >= start && onTimeConfirmed(k));
+}
+// On-target lines from the same published thresholds the levers use (§4).
+// true / false, or null when the day holds no input for that lever. Resting HR
+// is left out: it would rank genetics and fitness history, not this month.
+function leverOnTarget(name, k){
+  const d = S.days[k], m = (d && d.metrics) || {};
+  switch(name){
+    case 'Sleep': return isNum(m.sleepH) ? (m.sleepH>=7 && m.sleepH<=9) : null;
+    case 'Training volume':
+      if(!isNum(m.rideH) && !isNum(m.workoutMin)) return null;
+      return ((m.rideH||0) + (m.workoutMin||0)/60) >= 0.7;
+    case 'Strength': {
+      if(typeof m.workoutDone!=='boolean') return null;
+      // WHO >=2x/wk: on target when the trailing 7 days, this one included, hold 2+ lifting days
+      let lifts = 0;
+      for(let i=0;i<7;i++){
+        const dt = new Date(k+'T12:00:00'); dt.setDate(dt.getDate()-i);
+        const x = S.days[dstr(dt)];
+        if(x && x.updatedAt>0 && x.metrics && x.metrics.workoutDone===true) lifts++;
+      }
+      return lifts >= 2;
+    }
+    case 'Sitting': return isNum(m.sitH) ? m.sitH<=8 : null;
+    case 'Food quality': {
+      const f = (d.foods||[]).filter(x=>isNum(x.score)).map(x=>x.score);
+      return f.length ? (f.reduce((a,b)=>a+b,0)/f.length) >= 65 : null;
+    }
+    case 'Stress': return isNum(m.stress) ? m.stress<=4 : null;
+  }
+  return null;
+}
+function seasonConsistency(dates){
+  let on = 0, n = 0; const per = {};
+  SEASON_LEVERS.forEach(L=> per[L] = { on:0, n:0 });
+  dates.forEach(k=> SEASON_LEVERS.forEach(L=>{
+    const r = leverOnTarget(L, k); if(r===null) return;
+    n++; per[L].n++; if(r){ on++; per[L].on++; }
+  }));
+  return { on, n, rate: n ? on/n : null, per };
+}
+// Movement from the first in-season day the score existed (14 confirmed days)
+// to the latest in-season day, reported only once SEASON_MOVE_MIN_DAYS apart so
+// a two-day wobble never reads as a result.
+function seasonMovement(dates){
+  const ready = dates.filter(k => confirmedDates(k).length >= SCORE_MATURE_DAYS);
+  if(!ready.length) return { movement:null, from:null };
+  const from = ready[0], to = dates[dates.length-1];
+  if(dayGap(from, to) < SEASON_MOVE_MIN_DAYS) return { movement:null, from };
+  const a = scoreAt(from), b = scoreAt(to);
+  if(!a || !b || a.score==null || b.score==null) return { movement:null, from };
+  return { movement: Math.round((b.score - a.score)*10)/10, from };
+}
+// Language-neutral so each reader renders it in their own language:
+// t = training days per week, s = mean sleep hours, n = days it is built on.
+function seasonPractice(dates){
+  if(!dates.length) return '';
+  let train = 0, sleep = 0, sn = 0;
+  dates.forEach(k=>{ const m = S.days[k].metrics || {};
+    if(m.workoutDone===true || (m.rideH||0) >= 0.25) train++;
+    if(isNum(m.sleepH)){ sleep += m.sleepH; sn++; } });
+  return 't='+Math.round(train/dates.length*7)+';s='+(sn ? (sleep/sn).toFixed(1) : '')+';n='+dates.length;
+}
+// The whole card, from local values. The score is included only when the owner
+// opted in for this circle - the Firestore rules refuse it otherwise, too.
+function seasonCard(start, end, showScore){
+  const dates = seasonDays(start, end);
+  const c = seasonConsistency(dates), mv = seasonMovement(dates);
+  const sc = scoreReady() ? scoreAt(todayStr()) : null;
+  const s = sc && sc.score!=null ? sc.score : null;
+  return {
+    band: s!=null ? scoreBandRow(s).k : 'forming',
+    score: (showScore && s!=null) ? Math.round(s*10)/10 : null,
+    consistency: c.rate==null ? null : Math.round(c.rate*1000)/1000,
+    onTargetDays: c.on, leverDays: c.n, confirmedDays: dates.length,
+    movement: mv.movement, movementFrom: mv.movement!=null ? mv.from : null,
+    practiceLine: seasonPractice(dates),
+    provenance: scoreProvenance(todayStr()).key,
+    updatedAt: Date.now()
+  };
+}
 
 
 /* ---------- USUAL MEALS + THE PLAN READER (HEBE_WEEKLY_MODE.md 1, 9.1) -----
