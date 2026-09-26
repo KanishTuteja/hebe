@@ -204,6 +204,9 @@ nav.bottom{display:none}
 .ciname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13.5px}
 .cicol{font-size:13px;line-height:1.25;min-width:0;overflow-wrap:anywhere}
 .cirow .sub2{font-size:10.5px;color:var(--text3);font-weight:400}
+.homecircles{font-size:12.5px;color:var(--text2);padding:2px;overflow-wrap:anywhere}
+.homecircles .sub2{font-size:11.5px;color:var(--text3)}
+.homecircle{background:none;border:0;border-bottom:1px solid var(--line2);padding:0;font:inherit;font-weight:600;color:var(--text);cursor:pointer}
 .scorehero .provtag{align-self:center}
 .scorehead .provtag{margin-left:8px}
 /* ---- score v2: the hero ---- */
@@ -1322,7 +1325,7 @@ en:{
  ci_notYet:"not yet", ci_since:"since {0}", ci_noCard:"no card yet",
  ci_legendRank:"Ranked on consistency: how often each lever was on target, counting only days confirmed within 8 days. A day nobody logged counts for nothing either way. Under 5 confirmed days: listed, not ranked.",
  ci_legendMove:"Movement is the score’s change this season. It fills in once a person’s score has two weeks of history.",
- ci_legendPriv:"Nobody’s score is shown unless they chose to. Days, food, weight and HEBE age never leave their owner’s account.",
+ ci_legendPriv:"Nobody’s score is shown unless they chose to. Days, food, weight, notes and HEBE age never leave their owner’s account.",
  ci_invite:"Invite link", ci_refresh:"Refresh", ci_leave:"Leave circle", ci_back:"‹ Setup",
  ci_inviteTitle:"Invite to {0}", ci_inviteNote:"Anyone with this link can join until the circle has 12 people. Send it only to people you chose.",
  ci_copy:"Copy link", ci_copied:"Link copied",
@@ -1335,11 +1338,22 @@ en:{
  ci_displayName:"Your name in this circle", ci_save:"Save", ci_saved:"Saved",
  ci_cardNote:"Your card is rebuilt from your own log after each check-in. Only what is on this card is shared.",
  ci_joinTitle:"Join {0}?",
- ci_joinBody:"Its members will see your circle card: band, consistency, movement, a practice line and where your data comes from. Never your days, food, weight or HEBE age. Your score stays hidden unless you turn it on.",
+ ci_joinBody:"Its members will see your circle card: band, consistency, movement, a practice line and where your data comes from. Never your days, food, weight, notes or HEBE age. Your score stays hidden unless you turn it on.",
  ci_join:"Join", ci_notNow:"Not now", ci_joined:"You joined {0}", ci_created:"Circle created — send the invite link",
  ci_inviteSignin:"You’ve been invited to a HEBE circle. Circles need a Google sign-in, because comparing needs a second person. Everything else in HEBE works without one.",
  ci_signInJoin:"Sign in with Google", ci_needConfig:"Sign-in isn’t set up on this device yet.",
- ci_wrongProject:"This device syncs to its own Firebase project, and circles run on HEBE’s. Open Setup and tap “Move sync to HEBE’s own project”, then open the invite link again."
+ ci_wrongProject:"This device syncs to its own Firebase project, and circles run on HEBE’s. Open Setup and tap “Move sync to HEBE’s own project”, then open the invite link again.",
+ ci_homeLabel:"Circle",
+ dl_adv:"Advanced: delete my account data", dl_advNote:"Deletes what HEBE holds for you in the cloud. You choose whether this device is cleared too.",
+ dl_title:"Delete my account data", dl_intro:"This permanently deletes from HEBE’s cloud:",
+ dl_days:"every day you have synced", dl_settings:"your synced settings, templates, protocols, usual meals and week plan",
+ dl_circles:"your place in every circle — you leave each one, and your card disappears from its board",
+ dl_device:"This device keeps its own copy unless you tick the box. If you sign in again later, this device would upload that copy again.",
+ dl_alsoLocal:"Also clear this device (days, templates, protocols, meals and plan)",
+ dl_auth:"Your Google sign-in itself (name and email, which Firebase keeps so you can sign in) is not part of this. It holds no health data.",
+ dl_go:"Delete", dl_working:"Deleting…", dl_done:"Your account data is deleted. You’re signed out.",
+ dl_doneLocal:"Your account data and this device’s data are deleted. You’re signed out.",
+ dl_failed:"Deleting stopped partway. Try again — it carries on where it stopped.", dl_signedOut:"Sign in first."
 },
 fr:{
  nutrition:"Nutrition", logFood:"Enregistrer un aliment",
@@ -1436,7 +1450,7 @@ fr:{
  ci_notYet:"pas encore", ci_since:"depuis le {0}", ci_noCard:"pas encore de carte",
  ci_legendRank:"Classement sur la régularité : combien de fois chaque levier était dans la cible, en ne comptant que les jours confirmés dans les 8 jours. Un jour non enregistré ne compte ni pour ni contre. Moins de 5 jours confirmés : listé, pas classé.",
  ci_legendMove:"La progression, c’est l’évolution du score pendant la saison. Elle apparaît quand le score d’une personne a deux semaines d’historique.",
- ci_legendPriv:"Le score de chacun reste caché sauf s’il choisit de le montrer. Les jours, l’alimentation, le poids et l’âge HEBE ne quittent jamais le compte de leur propriétaire.",
+ ci_legendPriv:"Le score de chacun reste caché sauf s’il choisit de le montrer. Les jours, l’alimentation, le poids, les notes et l’âge HEBE ne quittent jamais le compte de leur propriétaire.",
  ci_invite:"Lien d’invitation", ci_refresh:"Actualiser", ci_leave:"Quitter le cercle", ci_back:"‹ Réglages",
  ci_inviteTitle:"Inviter dans {0}", ci_inviteNote:"Toute personne qui a ce lien peut rejoindre tant que le cercle n’a pas 12 personnes. Envoie-le seulement à des gens que tu as choisis.",
  ci_copy:"Copier le lien", ci_copied:"Lien copié",
@@ -1449,11 +1463,22 @@ fr:{
  ci_displayName:"Ton nom dans ce cercle", ci_save:"Enregistrer", ci_saved:"Enregistré",
  ci_cardNote:"Ta carte est recalculée à partir de ton propre journal après chaque bilan. Seul ce qui figure sur cette carte est partagé.",
  ci_joinTitle:"Rejoindre {0} ?",
- ci_joinBody:"Ses membres verront ta carte de cercle : bande, régularité, progression, une ligne sur tes habitudes et l’origine de tes données. Jamais tes jours, ton alimentation, ton poids ni ton âge HEBE. Ton score reste caché sauf si tu l’actives.",
+ ci_joinBody:"Ses membres verront ta carte de cercle : bande, régularité, progression, une ligne sur tes habitudes et l’origine de tes données. Jamais tes jours, ton alimentation, ton poids, tes notes ni ton âge HEBE. Ton score reste caché sauf si tu l’actives.",
  ci_join:"Rejoindre", ci_notNow:"Pas maintenant", ci_joined:"Tu as rejoint {0}", ci_created:"Cercle créé — envoie le lien d’invitation",
  ci_inviteSignin:"Tu as été invité·e dans un cercle HEBE. Les cercles demandent une connexion Google, parce que comparer demande une deuxième personne. Tout le reste de HEBE fonctionne sans.",
  ci_signInJoin:"Se connecter avec Google", ci_needConfig:"La connexion n’est pas encore configurée sur cet appareil.",
- ci_wrongProject:"Cet appareil se synchronise avec son propre projet Firebase, et les cercles fonctionnent sur celui de HEBE. Ouvre les Réglages, touche « Move sync to HEBE’s own project », puis rouvre le lien d’invitation."
+ ci_wrongProject:"Cet appareil se synchronise avec son propre projet Firebase, et les cercles fonctionnent sur celui de HEBE. Ouvre les Réglages, touche « Move sync to HEBE’s own project », puis rouvre le lien d’invitation.",
+ ci_homeLabel:"Cercle",
+ dl_adv:"Avancé : supprimer les données de mon compte", dl_advNote:"Supprime ce que HEBE garde pour toi dans le cloud. Tu choisis si cet appareil est vidé aussi.",
+ dl_title:"Supprimer les données de mon compte", dl_intro:"Ceci supprime définitivement du cloud de HEBE :",
+ dl_days:"tous les jours que tu as synchronisés", dl_settings:"tes réglages synchronisés, modèles, protocoles, repas habituels et plan de la semaine",
+ dl_circles:"ta place dans chaque cercle — tu les quittes tous, et ta carte disparaît de chaque classement",
+ dl_device:"Cet appareil garde sa propre copie, sauf si tu coches la case. Si tu te reconnectes plus tard, cet appareil renverrait cette copie.",
+ dl_alsoLocal:"Vider aussi cet appareil (jours, modèles, protocoles, repas et plan)",
+ dl_auth:"Ta connexion Google elle-même (nom et e-mail, que Firebase garde pour te connecter) n’en fait pas partie. Elle ne contient aucune donnée de santé.",
+ dl_go:"Supprimer", dl_working:"Suppression…", dl_done:"Les données de ton compte sont supprimées. Tu es déconnecté·e.",
+ dl_doneLocal:"Les données de ton compte et celles de cet appareil sont supprimées. Tu es déconnecté·e.",
+ dl_failed:"La suppression s’est arrêtée en cours. Réessaie — elle reprend là où elle s’est arrêtée.", dl_signedOut:"Connecte-toi d’abord."
 }};
 
 // First visit follows the browser; after that the user's choice wins.
@@ -2703,6 +2728,7 @@ function renderHome(){
 
   // Supporting context, quieter. (Exploration — trajectory + full read — lives
   // collapsed inside the hero cards above.)
+  h += homeCirclesLine();          // circles shortcut: only when in a circle, never above ONE MOVE
   h += '<div class="grid4 mt fade">';
   const sleepOff = Math.abs(m.sleepH-7);
   h += '<div class="tile"><div class="k">Sleep</div><div class="v">'+m.sleepH+' h</div><div class="s" style="color:'+(sleepOff<=0.5?'var(--teal)':'var(--amber)')+'">'+(sleepOff<=0.5?'optimal (~7h)':(m.sleepH<7?(7-m.sleepH).toFixed(1)+'h under 7h':(m.sleepH-7).toFixed(1)+'h over 7h'))+'</div></div>';
@@ -4402,6 +4428,9 @@ function renderSetup(){
     + '<div style="display:flex;gap:8px;margin-top:10px">'
     + (S.fb.user? '<button class="btn" id="fbOut">Sign out</button>' : '<button class="btn primary" id="fbIn"'+(fbReady?'':' disabled')+'>Sign in with Google</button>')
     + '</div>'
+    + (S.fb.user ? '<details class="sub mt" style="font-size:11.5px"><summary style="cursor:pointer">'+esc(t('dl_adv'))+'</summary>'
+        + '<div class="mt">'+esc(t('dl_advNote'))+'</div>'
+        + '<button class="btn danger" id="dlOpen" style="margin-top:8px">'+esc(t('dl_title'))+'</button></details>' : '')
     + (!(s.fbConfig||'').trim() ? '' : '<details class="sub mt" style="font-size:11.5px"><summary style="cursor:pointer">Firestore rules for your own project (copy into its console)</summary><pre style="background:var(--card2);padding:8px;border-radius:8px;overflow-x:auto;font-size:10.5px">rules_version = \'2\';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    match /users/{uid}/{document=**} {\n      allow read, write: if request.auth != null &amp;&amp; request.auth.uid == uid;\n    }\n  }\n}</pre></details>') + '</div>';
 
   h += renderCirclesSetup();
@@ -4470,14 +4499,7 @@ let ciListLoading = false;
 function renderCirclesSetup(){
   if(!circlesOn()) return '';
   let h = '<div class="card mt fade" id="circlesCard"><h3>'+esc(t('ci_title'))+'</h3>';
-  if(CIRCLES.ids===null || ciListLoading){
-    if(!ciListLoading){
-      ciListLoading = true;
-      loadMyCircles().catch(e=>{ console.warn(e); CIRCLES.ids = CIRCLES.ids || []; })
-        .then(()=>{ ciListLoading = false; if(S.page==='setup') render(); });
-    }
-    return h + '<div class="sub mt">'+esc(t('ci_loading'))+'</div></div>';
-  }
+  if(!ciEnsureList()) return h + '<div class="sub mt">'+esc(t('ci_loading'))+'</div></div>';
   const list = CIRCLES.ids.map(id=> CIRCLES.meta[id]).filter(Boolean);
   if(!list.length){
     h += '<div class="mt" style="font-weight:600;font-size:13.5px">'+esc(t('ci_empty'))+'</div>'
@@ -4668,6 +4690,76 @@ async function ciJoinGo(btn){
   }catch(err){ btn.disabled = false; toast(err.message); }
 }
 
+// My circles, loaded once per sign-in; true when the list is ready to draw.
+function ciEnsureList(){
+  if(CIRCLES.ids!==null && !ciListLoading) return true;
+  if(!ciListLoading){
+    ciListLoading = true;
+    loadMyCircles().catch(e=>{ console.warn(e); CIRCLES.ids = CIRCLES.ids || []; })
+      .then(()=>{ ciListLoading = false; if(S.page==='setup' || S.page==='home') render(); });
+  }
+  return false;
+}
+// Home shortcut - New. One slim line in supporting context, below ONE MOVE,
+// and only when you are in a circle. Nothing at all otherwise.
+function homeCirclesLine(){
+  if(!circlesOn() || !ciEnsureList()) return '';
+  const list = (CIRCLES.ids||[]).map(id=> CIRCLES.meta[id]).filter(Boolean).slice(0,3);
+  if(!list.length) return '';
+  return '<div class="homecircles mt fade">'+esc(t('ci_homeLabel'))+' · '
+    + list.map(c=> '<button class="homecircle" data-ciopen="'+esc(c.id)+'">'+esc(c.name)+' ›</button> <span class="sub2">'+esc(ciSeasonState(c))+'</span>').join(' · ')
+    + '</div>';
+}
+
+// ---------- delete my account data (Setup -> Advanced) - New ----------
+// Other people's health data lives here now, so leaving must be complete.
+// Cloud only by default: every synced day, the users doc (settings, templates,
+// protocols, meals, plan, circle ids) and every circle membership, left with the
+// same batch as a normal leave. This device is cleared only if asked. Then sign
+// out. Plain words, no retention copy. Safe to re-run if it stops partway.
+function dlModal(){
+  showModal('<h3 style="margin:0">'+esc(t('dl_title'))+'</h3>'
+    + '<div class="sub mt" style="line-height:1.55">'+esc(t('dl_intro'))+'</div>'
+    + '<ul class="sub" style="line-height:1.6;margin:6px 0 0 18px;padding:0"><li>'+esc(t('dl_days'))+'</li><li>'+esc(t('dl_settings'))+'</li><li>'+esc(t('dl_circles'))+'</li></ul>'
+    + '<div class="sub mt" style="line-height:1.55">'+esc(t('dl_device'))+'</div>'
+    + '<label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;margin-top:8px;cursor:pointer"><input type="checkbox" id="dlLocal" style="width:auto;margin-top:2px"> '+esc(t('dl_alsoLocal'))+'</label>'
+    + '<div class="sub mt" style="font-size:11px;line-height:1.45">'+esc(t('dl_auth'))+'</div>'
+    + '<div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end;flex-wrap:wrap">'
+    + '<button class="btn" id="ciClose">'+esc(t('ci_cancel'))+'</button>'
+    + '<button class="btn danger" id="dlGo">'+esc(t('dl_go'))+'</button></div>');
+}
+async function deleteMyAccountData(clearDevice){
+  if(!S.fb.user || !S.fb.db) throw new Error(t('dl_signedOut'));
+  const db = S.fb.db, me = db.collection('users').doc(S.fb.user.uid);
+  // Nothing already queued may write back after the delete.
+  clearTimeout(pushT); clearTimeout(metaT); clearTimeout(publishT); pushQ.clear();
+  // 1. Every circle, with the normal leave batch (row + card + count).
+  if(circlesProjectOk()){
+    CIRCLES.ids = null;
+    for(const cid of (await circleIds()).slice()){
+      try{ await leaveCircle(cid); }
+      catch(e){ if(!(e && e.code==='permission-denied')) throw e; }   // already out, or it closed
+    }
+  }
+  // 2. Every synced day, in batches under Firestore's 500-write limit.
+  for(;;){
+    const snap = await me.collection('days').limit(400).get();
+    if(snap.empty) break;
+    const b = db.batch(); snap.forEach(d=> b.delete(d.ref)); await b.commit();
+  }
+  // 3. The users doc.
+  await me.delete();
+  // 4. This device, only when ticked (the same keys "Delete all local data" clears, plus meals + plan).
+  if(clearDevice){
+    ['hebe_days','hebe_templates','hebe_protocols','hebe_lastreport','hebe_meals','hebe_plan','hebe_join']
+      .forEach(k=>{ try{ localStorage.removeItem(k); }catch(e){} });
+    S.days = {}; S.templates = JSON.parse(JSON.stringify(TEMPLATE_DEFAULTS)); S.protocols = [];
+    S.meals = {}; S.plan = { mealTpl:{ weekday:[], weekend:[] }, weeks:{} };
+  }
+  // 5. Sign out.
+  await firebase.auth().signOut();
+}
+
 // Clicks for everything above. Called first from the document click handler,
 // which declares a local `t` further down - so this lives outside it.
 function circlesClick(e){
@@ -4710,6 +4802,15 @@ function circlesClick(e){
     }
     case 'ciRefresh': delete CIRCLES.board[CIRCLES.open]; render(); return true;
     case 'ciLeave': ciLeave(b); return true;
+    case 'dlOpen': dlModal(); return true;
+    case 'dlGo': {
+      const local = !!(document.getElementById('dlLocal')||{}).checked;
+      b.disabled = true; b.textContent = t('dl_working');
+      deleteMyAccountData(local)
+        .then(()=>{ hideModal(); S.page = 'setup'; render(); toast(t(local ? 'dl_doneLocal' : 'dl_done')); })
+        .catch(err=>{ console.warn(err); b.disabled = false; b.textContent = t('dl_go'); toast(t('dl_failed')); });
+      return true;
+    }
     case 'ciSaveName': {
       const cid = CIRCLES.open, v = ((document.getElementById('ciName')||{}).value||'').trim();
       if(!v) return true;
