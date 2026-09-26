@@ -1341,7 +1341,8 @@ en:{
  ci_joinBody:"Its members will see your circle card: band, consistency, movement, a practice line and where your data comes from. Never your days, food, weight, notes or HEBE age. Your score stays hidden unless you turn it on.",
  ci_join:"Join", ci_notNow:"Not now", ci_joined:"You joined {0}", ci_created:"Circle created — send the invite link",
  ci_inviteSignin:"You’ve been invited to a HEBE circle. Circles need a Google sign-in, because comparing needs a second person. Everything else in HEBE works without one.",
- ci_signInJoin:"Sign in with Google", ci_needConfig:"Sign-in isn’t set up on this device yet.",
+ ci_signInJoin:"Sign in with Google and join", ci_needConfig:"Sign-in isn’t set up on this device yet.",
+ ci_errFull:"{0} already has 12 people, the most a circle can hold.", ci_already:"You’re already in {0}",
  ci_wrongProject:"This device syncs to its own Firebase project, and circles run on HEBE’s. Open Setup and tap “Move sync to HEBE’s own project”, then open the invite link again.",
  ci_homeLabel:"Circle",
  dl_adv:"Advanced: delete my account data", dl_advNote:"Deletes what HEBE holds for you in the cloud. You choose whether this device is cleared too.",
@@ -1466,7 +1467,8 @@ fr:{
  ci_joinBody:"Ses membres verront ta carte de cercle : bande, régularité, progression, une ligne sur tes habitudes et l’origine de tes données. Jamais tes jours, ton alimentation, ton poids, tes notes ni ton âge HEBE. Ton score reste caché sauf si tu l’actives.",
  ci_join:"Rejoindre", ci_notNow:"Pas maintenant", ci_joined:"Tu as rejoint {0}", ci_created:"Cercle créé — envoie le lien d’invitation",
  ci_inviteSignin:"Tu as été invité·e dans un cercle HEBE. Les cercles demandent une connexion Google, parce que comparer demande une deuxième personne. Tout le reste de HEBE fonctionne sans.",
- ci_signInJoin:"Se connecter avec Google", ci_needConfig:"La connexion n’est pas encore configurée sur cet appareil.",
+ ci_signInJoin:"Se connecter avec Google et rejoindre", ci_needConfig:"La connexion n’est pas encore configurée sur cet appareil.",
+ ci_errFull:"{0} compte déjà 12 personnes, le maximum pour un cercle.", ci_already:"Tu fais déjà partie de {0}",
  ci_wrongProject:"Cet appareil se synchronise avec son propre projet Firebase, et les cercles fonctionnent sur celui de HEBE. Ouvre les Réglages, touche « Move sync to HEBE’s own project », puis rouvre le lien d’invitation.",
  ci_homeLabel:"Cercle",
  dl_adv:"Avancé : supprimer les données de mon compte", dl_advNote:"Supprime ce que HEBE garde pour toi dans le cloud. Tu choisis si cet appareil est vidé aussi.",
@@ -2436,8 +2438,10 @@ async function joinCircle(code){
     const b = db.batch();
     b.set(ref.collection('members').doc(uid), { displayName:defaultDisplayName(), joinedAt:Date.now(), showScore:false, inviteCode:code });
     b.update(ref, { memberCount: firebase.firestore.FieldValue.increment(1) });
-    try{ await b.commit(); }catch(e){ throw new Error(t('ci_errJoin')); }
+    try{ await b.commit(); }
+    catch(e){ throw new Error(e && e.code==='permission-denied' ? t('ci_errFull', inv.name) : t('ci_errJoin')); }
   }
+  CIRCLES.joinedNew = !already;
   if(!ids.includes(inv.cid)) await saveCircleIds(ids.concat(inv.cid));
   await publishCard(inv.cid);
   return inv.cid;
@@ -2529,7 +2533,9 @@ async function loadBoard(cid){
 function circlesAuthChanged(u){
   CIRCLES.ids = null; CIRCLES.meta = {}; CIRCLES.board = {};
   try{ if(u) localStorage.setItem('hebe_fb_on','1'); else localStorage.removeItem('hebe_fb_on'); }catch(e){}
-  if(CIRCLES.pendingJoin) setTimeout(ciJoinPrompt, 300);   // an invite link survives sign-in
+  // An invite link survives sign-in. While "Sign in and join" is under way, the
+  // signed-out event that loading Firebase fires must not re-show the invite screen.
+  if(CIRCLES.pendingJoin && (u || !CIRCLES.autoJoin)) setTimeout(ciJoinPrompt, 300);
   if(!u){ CIRCLES.open = null; if(S.page==='circle') S.page = 'setup'; return; }
   schedulePublishCards();
 }
@@ -4645,7 +4651,15 @@ function ciCaptureInvite(){
   try{ CIRCLES.pendingJoin = CIRCLES.pendingJoin || localStorage.getItem('hebe_join'); }catch(e){}
   return false;
 }
+// One invite prompt at a time: sign-in fires more than one auth event, and two
+// overlapping prompts could draw a Join screen over a join already under way.
+let ciPromptBusy = false;
 async function ciJoinPrompt(){
+  if(ciPromptBusy) return;
+  ciPromptBusy = true;
+  try{ await ciJoinPromptOnce(); } finally { ciPromptBusy = false; }
+}
+async function ciJoinPromptOnce(){
   const code = CIRCLES.pendingJoin;
   if(!code || onboardingOpen) return;
   const btns = (goId, goLabel, disabled)=> '<div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end">'
@@ -4661,6 +4675,7 @@ async function ciJoinPrompt(){
     const can = !!parseFbConfig();
     showModal('<h3 style="margin:0">'+esc(t('ci_title'))+'</h3>'
       + '<div class="sub mt" style="line-height:1.55">'+esc(t('ci_inviteSignin'))+'</div>'
+      + '<div class="sub mt" style="line-height:1.55">'+esc(t('ci_joinBody'))+'</div>'
       + (can ? '' : '<div class="sub mt" style="color:var(--amber)">'+esc(t('ci_needConfig'))+'</div>')
       + btns('ciSignInJoin', t('ci_signInJoin'), !can));
     return;
@@ -4674,9 +4689,27 @@ async function ciJoinPrompt(){
     return;
   }
   CIRCLES.pendingName = inv.name;
+  let member = false;
+  try{ member = (await circleRef(inv.cid).get()).exists; }catch(e){ member = false; }
+  const auto = CIRCLES.autoJoin === code; CIRCLES.autoJoin = null;
+  if(member || auto) return ciJoinNow(code, inv.name);
   showModal('<h3 style="margin:0;overflow-wrap:anywhere">'+esc(t('ci_joinTitle', inv.name))+'</h3>'
     + '<div class="sub mt" style="line-height:1.55">'+esc(t('ci_joinBody'))+'</div>'
     + btns('ciJoinGo', t('ci_join'), false));
+}
+// Join (or, if already in, just open) and land on the circle. A refusal - the
+// circle is full, or the link is dead - is a plain message, nothing else.
+async function ciJoinNow(code, name){
+  try{
+    const cid = await joinCircle(code);
+    ciClearInvite(); hideModal();
+    CIRCLES.open = cid; delete CIRCLES.board[cid]; S.page = 'circle'; render();
+    toast(t(CIRCLES.joinedNew ? 'ci_joined' : 'ci_already', name));
+  }catch(err){
+    ciClearInvite();
+    showModal('<div class="sub" style="line-height:1.55">'+esc(err.message)+'</div>'
+      + '<div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn" id="ciClose">'+esc(t('ci_close'))+'</button></div>');
+  }
 }
 async function ciJoinGo(btn){
   const code = CIRCLES.pendingJoin, name = CIRCLES.pendingName || '';
@@ -4787,7 +4820,11 @@ function circlesClick(e){
       CIRCLES.pendingJoin = m[1]; ciJoinPrompt(); return true;
     }
     case 'ciJoinGo': ciJoinGo(b); return true;
-    case 'ciSignInJoin': hideModal(); signInGoogle(); return true;
+    case 'ciSignInJoin': {
+      hideModal(); CIRCLES.autoJoin = CIRCLES.pendingJoin;
+      signInGoogle().then(()=>{ if(!S.fb.user) CIRCLES.autoJoin = null; });
+      return true;
+    }
     case 'ciNotNow': ciClearInvite(); hideModal(); return true;
     case 'ciClose': hideModal(); return true;
     case 'ciBack': S.page = 'setup'; CIRCLES.open = null; render(); return true;
