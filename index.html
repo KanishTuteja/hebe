@@ -351,6 +351,46 @@ button.pclear:hover{color:var(--coral)}
 
 .seg.lang{margin-bottom:0;flex-shrink:0}
 .seg.lang button{padding:5px 11px;font-size:11.5px;letter-spacing:.04em}
+/* --- Strength (v1): Performance card + the hidden strength page. Scoped .str- --- */
+.str-big{display:flex;align-items:baseline;gap:8px;margin-top:10px}
+.str-bwu{font-size:14px;color:var(--text2)}
+.str-unlock{font-size:13.5px;font-weight:600;line-height:1.45}
+.str-spark{display:block;width:100%;max-width:440px;height:auto;margin-top:10px}
+.str-spark-ax{max-width:440px;display:flex;justify-content:space-between;font-size:10.5px;color:var(--text3);margin-top:2px}
+.str-lifts{border-top:1px solid var(--line)}
+.str-lift{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1.3fr) 46px minmax(0,.9fr);gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}
+.str-ln{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.str-lv{font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.str-lv .tierb{padding:1px 6px;font-size:10px}
+.str-lr{font-variant-numeric:tabular-nums;font-weight:600;text-align:right}
+.str-ld{color:var(--text3);font-size:11.5px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.str-foot{font-size:11.5px;line-height:1.5}
+.str-dim{color:var(--text3)}
+.str-page input,.str-page select{font-size:16px;min-height:44px}
+.str-page .btn{min-height:44px}
+.str-page .chip{min-height:44px;display:inline-flex;align-items:center;font-size:13px;padding:5px 14px}
+.str-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px}
+.str-units{display:inline-flex;gap:6px}
+.str-bw{font-size:13px}
+.str-inrow{display:flex;gap:8px;align-items:center}
+.str-inrow input{flex:1;min-width:0}
+.str-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.str-more{margin-top:8px}
+.str-exname{font-weight:650;font-size:15px;margin-top:16px}
+.str-row{display:grid;grid-template-columns:16px minmax(0,1fr) minmax(0,1fr) 74px 44px;gap:6px;align-items:center;margin-top:6px}
+.str-row input{min-width:0;padding:8px}
+.str-row.str-hd{font-size:11px;color:var(--text3);margin-top:12px}
+.str-n{font-size:12px;color:var(--text3);text-align:center}
+.str-e1{font-size:11.5px;line-height:1.25;font-variant-numeric:tabular-nums;color:var(--text2)}
+button.str-x{height:44px;width:44px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text3);font-size:18px;line-height:1;cursor:pointer;font-family:inherit;padding:0}
+button.str-x:hover{color:var(--coral)}
+.str-addset{margin-top:10px}
+.str-save{position:sticky;bottom:0;display:flex;gap:8px;background:var(--card);padding:10px 0;margin-top:12px;border-top:1px solid var(--line);z-index:5}
+.str-save .btn.primary{flex:1}
+.str-sess{gap:10px}
+.str-acts{display:flex;gap:6px;flex-shrink:0}
+.str-acts .btn{padding:6px 12px}
+@media (max-width:880px){ .str-save{bottom:calc(64px + env(safe-area-inset-bottom))} }
 </style>
 </head>
 <body>
@@ -1483,6 +1523,28 @@ fr:{
  dl_failed:"La suppression s’est arrêtée en cours. Réessaie — elle reprend là où elle s’est arrêtée.", dl_signedOut:"Connecte-toi d’abord."
 }};
 
+// Strength strings. Performance is English-only (bounded translation), so these
+// live in LANG.en alone and t() falls back to them when the UI is in French.
+Object.assign(LANG.en, {
+ str_title:"Strength", str_cardSub:"Estimated from your logged sets · best of the last 90 days",
+ str_bwUnit:"bodyweight", str_tierE:"estimated from reps", str_tierM:"tested single",
+ str_vs4:"vs 4 weeks ago: {0}", str_12w:"12 weeks", str_sparkAria:"Strength score, last 12 weeks",
+ str_unlockLifts:"Log a {0} to unlock your strength score", str_unlockBw:"Add your bodyweight to unlock",
+ str_notYet:"not logged yet", str_logBtn:"Log a session",
+ str_foot:"Stronger people tend to live longer in large observational studies; this number is an estimate from your sets, not a tested max.",
+ str_back:"‹ Performance", str_pageTitle:"Strength · {0}",
+ str_bw:"Bodyweight {0} ({1})", str_bwAsk:"Bodyweight — needed for the strength score", str_bwSave:"Save",
+ str_bwWhy:"Saved to this day, the same place Fuel keeps it.", str_bwBad:"Enter your bodyweight",
+ str_more:"More", str_addCustom:"+ Custom exercise", str_customPh:"Exercise name", str_add:"Add",
+ str_last:"Last time: {0} · {1}", str_first:"First time — any weight is your baseline.",
+ str_reps:"reps", str_setW:"Set {0} weight", str_setR:"Set {0} reps", str_rmSet:"Remove set {0}",
+ str_e1:"e1RM {0}", str_e1Weak:"~{0} · less reliable", str_addSet:"+ Add set",
+ str_save:"Save session", str_saveEdit:"Save changes", str_cancel:"Cancel", str_editing:"editing",
+ str_needSet:"Add at least one set", str_saved:"Saved",
+ str_todays:"Today's sessions", str_dayList:"Sessions on {0}", str_none:"Nothing logged on this day yet.",
+ str_edit:"Edit", str_delete:"Delete", str_delConfirm:"Delete this session?"
+});
+
 // First visit follows the browser; after that the user's choice wins.
 function uiLang(){
   const v = S.settings && S.settings.lang;
@@ -2321,7 +2383,7 @@ async function pullCloud(){
     // pull synced settings (API key, model, targets, dob, name) — never overwrite
     // this device's own Firebase config
     if(md.settings){ const s=md.settings; delete s.fbConfig;
-      ['apiKey','model','proteinTarget','dob','name','anchors'].forEach(k=>{ if(s[k]!=null && !S.settings[k]) S.settings[k]=s[k]; });
+      ['apiKey','model','proteinTarget','dob','name','anchors','liftUnit','liftCustom'].forEach(k=>{ if(s[k]!=null && !S.settings[k]) S.settings[k]=s[k]; });
       if(s.apiKey) S.settings.apiKey = s.apiKey;
     }
   }
@@ -2879,7 +2941,7 @@ function renderPerf(){
   h += '<div class="card"><h3>Cardio volume</h3><div class="sub">riding hours (commutes count — they are zone 2)</div><div class="chartbox mt"><canvas id="chRide"></canvas></div></div>';
   h += '</div>';
   // Estimation layer — new cards appended below the existing three; nothing above moves.
-  h += zonesCardHTML() + aerobicCardHTML() + consistencyCardHTML();
+  h += zonesCardHTML() + aerobicCardHTML() + consistencyCardHTML() + strengthCardHTML();
   return h;
 }
 function perfCharts(){
@@ -4860,9 +4922,314 @@ function circlesClick(e){
   return false;
 }
 
+// ---------- strength (v1) — a covariate, like nutrition ----------
+// Nothing in the engine reads d.lifts: computeHebeAge, ageAdjustments, the 0-100
+// score, levers, circle cards and the body map are untouched by it, and logging a
+// set never ticks "workout done". Stored in kg at full precision; lb exists only
+// at input and display, so flipping the unit can never rewrite a stored value.
+/* STRENGTH-MATH:BEGIN */
+const LB_KG = 0.45359237;
+const STRENGTH_WINDOW = 90;          // best e1RM over [date-89, date]
+const STRENGTH_BW_DAYS = 30;         // bodyweight from [date-30, date]
+const STRENGTH_EX = [
+  { id:'squat',    name:'Back squat',          core:true  },
+  { id:'deadlift', name:'Deadlift',            core:true  },
+  { id:'bench',    name:'Bench press',         core:true  },
+  { id:'row',      name:'Barbell row',         core:true  },
+  { id:'ohp',      name:'Overhead press',      core:false },
+  { id:'fsquat',   name:'Front squat',         core:false },
+  { id:'rdl',      name:'Romanian deadlift',   core:false },
+  { id:'incline',  name:'Incline bench press', core:false },
+  { id:'dbrow',    name:'Dumbbell row',        core:false },
+  { id:'legpress', name:'Leg press',           core:false },
+  { id:'pulldown', name:'Lat pulldown',        core:false }
+];
+const STRENGTH_CORE = STRENGTH_EX.filter(x=>x.core).map(x=>x.id);
+function liftUnit(){ return S.settings.liftUnit==='lb' ? 'lb' : 'kg'; }
+function toKg(v, unit){ return (unit||liftUnit())==='lb' ? v*LB_KG : v; }
+function fromKg(kg, unit){ return (unit||liftUnit())==='lb' ? kg/LB_KG : kg; }
+// 1 decimal, trailing ".0" trimmed (String() drops it on its own).
+function fmtLift(kg, unit){ return (kg==null || !isFinite(kg)) ? '—' : String(Math.round(fromKg(kg, unit)*10)/10); }
+function fmtRatio(v){ return v.toFixed(2)+'×'; }
+// Epley. 1 rep is the weight itself; 11-15 reps still get a number but are marked
+// less reliable and never count toward a best or the score; past 15, no estimate.
+function e1rm(kg, reps){
+  if(!(kg>0) || !(reps>=1)) return null;
+  if(reps===1) return kg;
+  if(reps>15) return null;
+  return kg*(1+reps/30);
+}
+function e1rmQualifies(reps){ return reps>=1 && reps<=10; }
+function strShift(date, n){ const d = new Date(date+'T12:00:00'); d.setDate(d.getDate()+n); return dstr(d); }
+function liftSessions(){
+  const out = [];
+  Object.keys(S.days).forEach(k=>{ ((S.days[k]&&S.days[k].lifts)||[]).forEach(s=>out.push(Object.assign({}, s, { date:k }))); });
+  return out.sort((a,b)=> a.date<b.date ? -1 : a.date>b.date ? 1 : (a.ts||0)-(b.ts||0));
+}
+function lastSessionFor(ex, date, all){
+  all = all || liftSessions();
+  for(let i=all.length-1; i>=0; i--){ const s = all[i]; if(s.ex===ex && s.date<=date) return s; }
+  return null;
+}
+function bestE1rm(ex, date, all){
+  all = all || liftSessions();
+  const from = strShift(date, -(STRENGTH_WINDOW-1));
+  let best = null;
+  all.forEach(s=>{
+    if(s.ex!==ex || s.date<from || s.date>date) return;
+    (s.sets||[]).forEach(st=>{
+      if(!e1rmQualifies(st.reps)) return;
+      const v = e1rm(st.kg, st.reps); if(v==null) return;
+      if(!best || v>best.e1rm) best = { e1rm:v, kg:st.kg, reps:st.reps, date:s.date, tier: st.reps===1 ? 'M' : 'E' };
+    });
+  });
+  return best;
+}
+function bodyweightEntryAt(date){
+  const from = strShift(date, -STRENGTH_BW_DAYS);
+  const ks = Object.keys(S.days).filter(k=>k>=from && k<=date && S.days[k] && S.days[k].weightKg>0).sort();
+  return ks.length ? { kg:S.days[ks[ks.length-1]].weightKg, date:ks[ks.length-1] } : null;
+}
+function bodyweightAt(date){ const e = bodyweightEntryAt(date); return e ? e.kg : null; }
+// Hook for a future age/sex reference. Not wired to anything: always 1.
+function strengthRef(age, sex){ return 1; }
+// USS = mean of the four core lift-to-bodyweight ratios, only when all four exist.
+function strengthScoreAt(date, all){
+  all = all || liftSessions();
+  const bw = bodyweightAt(date), bests = {}, ratios = {}, missing = [];
+  STRENGTH_CORE.forEach(ex=>{
+    const b = bestE1rm(ex, date, all);
+    bests[ex] = b; ratios[ex] = (b && bw) ? b.e1rm/bw : null;
+    if(!b) missing.push(ex);
+  });
+  let uss = null, reason = null;
+  if(!bw) reason = 'bodyweight';
+  else if(missing.length) reason = 'lifts';
+  else uss = STRENGTH_CORE.reduce((a,ex)=>a+ratios[ex], 0)/STRENGTH_CORE.length / strengthRef(chronoAge(date), userSex());
+  return { uss, bw, bests, ratios, missing, reason, tier:'E' };
+}
+// Last 12 week-ends: weeks end on Sunday; the current, partial week ends on `date`.
+function strengthTrend(date, weeks){
+  weeks = weeks || 12;
+  const all = liftSessions(), ends = [date];
+  const dow = new Date(date+'T12:00:00').getDay();
+  let sun = strShift(date, dow===0 ? -7 : -dow);
+  while(ends.length<weeks){ ends.push(sun); sun = strShift(sun, -7); }
+  return ends.reverse().map(k=>({ date:k, uss:strengthScoreAt(k, all).uss }));
+}
+/* STRENGTH-MATH:END */
+
+// ---- Strength: the Performance card ----
+function strDateShort(k){ return new Date(k+'T12:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric' }); }
+function strExList(){ return STRENGTH_EX.concat((S.settings.liftCustom||[]).map(c=>({ id:c.id, name:c.name, core:false, custom:true }))); }
+function strExName(id){ const x = strExList().find(e=>e.id===id); return x ? x.name : id; }
+function strJoin(a){ return a.length<2 ? (a[0]||'') : a.slice(0,-1).join(', ')+' and '+a[a.length-1]; }
+function strTier(k){ return '<span class="badge gray tierb" title="'+esc(t(k==='M'?'str_tierM':'str_tierE'))+'">'+k+'</span>'; }
+function strCompactSets(sets, unit){
+  unit = unit || liftUnit();
+  if(!sets || !sets.length) return '';
+  if(sets.every(s=>s.kg===sets[0].kg)) return fmtLift(sets[0].kg, unit)+' '+unit+' × '+sets.map(s=>s.reps).join(', ');
+  return sets.map(s=>fmtLift(s.kg, unit)+'×'+s.reps).join(', ')+' '+unit;
+}
+function strUnlockLine(sc){
+  const out = [];
+  if(sc.missing.length) out.push(t('str_unlockLifts', strJoin(sc.missing.map(ex=>strExName(ex).toLowerCase()))));
+  if(!sc.bw) out.push(t('str_unlockBw'));
+  return out.join(' · ');
+}
+// Inline SVG, not Chart.js, so it survives a blocked CDN. Gaps where the score is incomplete.
+function strSparkSVG(tr){
+  const vals = tr.map(p=>p.uss).filter(v=>v!=null);
+  if(!vals.length) return '';
+  const W = 300, H = 56, P = 6, n = tr.length;
+  let lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
+  if(hi-lo < 0.1){ const m = (hi+lo)/2; lo = m-0.05; hi = m+0.05; }
+  const x = i => (P + i*(W-2*P)/(n-1)).toFixed(1), y = v => (H-P - (v-lo)*(H-2*P)/(hi-lo)).toFixed(1);
+  let d = '', pen = false, dots = '';
+  tr.forEach((p,i)=>{
+    if(p.uss==null){ pen = false; return; }
+    d += (pen?'L':'M')+x(i)+' '+y(p.uss)+' '; pen = true;
+    const lone = (i===0 || tr[i-1].uss==null) && (i===n-1 || tr[i+1].uss==null);
+    if(lone || i===n-1) dots += '<circle cx="'+x(i)+'" cy="'+y(p.uss)+'" r="2.6" fill="var(--teal)"/>';
+  });
+  return '<svg class="str-spark" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+esc(t('str_sparkAria'))+'">'
+    + '<path d="'+d.trim()+'" fill="none" stroke="var(--teal)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>'+dots+'</svg>'
+    + '<div class="str-spark-ax"><span>'+strDateShort(tr[0].date)+'</span><span>'+esc(t('str_12w'))+'</span><span>'+strDateShort(tr[n-1].date)+'</span></div>';
+}
+function strengthCardHTML(){
+  const u = liftUnit(), all = liftSessions(), sc = strengthScoreAt(S.date, all);
+  let h = '<div class="card mt fade str-card"><div class="est-head"><h3>'+esc(t('str_title'))+'</h3>'
+    + (sc.uss!=null ? '<span class="badge gray tierb">E · '+esc(t('str_tierE'))+'</span>' : '')+'</div>'
+    + '<div class="sub">'+esc(t('str_cardSub'))+'</div>';
+  if(sc.uss!=null){
+    h += '<div class="str-big"><span class="covbig">'+fmtRatio(sc.uss)+'</span><span class="str-bwu">'+esc(t('str_bwUnit'))+'</span></div>';
+    const tr = strengthTrend(S.date, 12);
+    h += strSparkSVG(tr);
+    const now = tr[tr.length-1].uss, then = tr[tr.length-5].uss;
+    if(now!=null && then!=null){ const dl = now-then;
+      h += '<div class="sub" style="margin-top:6px">'+esc(t('str_vs4', (dl<0?'−':'+')+Math.abs(dl).toFixed(2)+'×'))+'</div>'; }
+  } else if(all.length){               // nothing ever logged: just the four rows and the button
+    h += '<div class="str-unlock mt">'+esc(strUnlockLine(sc))+'</div>';
+  }
+  h += '<div class="str-lifts mt">';
+  STRENGTH_CORE.forEach(ex=>{
+    const b = sc.bests[ex], last = lastSessionFor(ex, S.date, all), r = sc.ratios[ex];
+    h += '<div class="str-lift"><span class="str-ln">'+esc(strExName(ex))+'</span>'
+      + '<span class="str-lv">'+(b ? fmtLift(b.e1rm, u)+' '+u+' '+strTier(b.tier) : '—')+'</span>'
+      + '<span class="str-lr">'+(r!=null ? fmtRatio(r) : '')+'</span>'
+      + '<span class="str-ld">'+(last ? strDateShort(last.date) : esc(t('str_notYet')))+'</span></div>';
+  });
+  h += '</div><button class="btn primary mt" data-page="strength">'+esc(t('str_logBtn'))+'</button>'
+    + '<div class="sub mt str-foot">'+esc(t('str_foot'))+'</div></div>';
+  return h;
+}
+
+// ---- Strength: the hidden logging page (Performance -> Log a session) ----
+// Editor state lives here, not in the DOM, so a re-render never drops typed values;
+// typing only updates STR and the row's e1RM cell in place (no render, focus kept).
+const STR = { ex:'squat', rows:null, editingId:null, date:null, dirty:false, customOpen:false };
+function strEmptyRow(){ return { kg:null, reps:null, w:'', r:'' }; }
+function strRowsFrom(sess){
+  const u = liftUnit();
+  return sess && sess.sets && sess.sets.length ? sess.sets.map(s=>({ kg:s.kg, reps:s.reps, w:fmtLift(s.kg, u), r:String(s.reps) })) : [strEmptyRow()];
+}
+// Pre-fill from the last session of this exercise, fully editable.
+function strSeed(ex){ STR.ex = ex; STR.editingId = null; STR.dirty = false; STR.rows = strRowsFrom(lastSessionFor(ex, S.date)); }
+function strNewId(){ return 'L'+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+function strE1Cell(kg, reps){
+  const v = e1rm(kg, reps);
+  if(v==null) return '—';
+  const n = Math.round(fromKg(v));
+  return reps<=10 ? esc(t('str_e1', n)) : '<span class="str-dim">'+esc(t('str_e1Weak', n))+'</span>';
+}
+function renderStrength(){
+  if(STR.date!==S.date){ STR.date = S.date; if(STR.editingId || !STR.dirty) STR.rows = null; }
+  if(!STR.rows) strSeed(STR.ex);
+  const u = liftUnit(), all = liftSessions(), d = S.days[S.date], bw = bodyweightEntryAt(S.date);
+  const last = lastSessionFor(STR.ex, S.date, all);
+  let h = topline() + '<div class="fade str-page">'
+    + '<button class="btn str-back" data-page="perf">'+esc(t('str_back'))+'</button>'
+    + '<div class="str-head"><h2 style="margin:0">'+esc(t('str_pageTitle', strDateShort(S.date)))+'</h2>'
+    + '<span class="str-units">'+['kg','lb'].map(k=>'<button class="chip '+(u===k?'on':'')+'" data-strunit="'+k+'">'+k+'</button>').join('')+'</span></div>';
+  h += '<div class="card mt">';
+  if(bw) h += '<div class="sub str-bw">'+esc(t('str_bw', fmtLift(bw.kg, u)+' '+u, strDateShort(bw.date)))+'</div>';
+  else h += '<label class="f">'+esc(t('str_bwAsk'))+'</label><div class="str-inrow"><input type="number" inputmode="decimal" step="any" min="0" enterkeyhint="done" data-strbw placeholder="'+u+'">'
+    + '<button class="btn primary" data-strbwsave>'+esc(t('str_bwSave'))+'</button></div><div class="sub" style="margin-top:4px">'+esc(t('str_bwWhy'))+'</div>';
+  const more = strExList().filter(x=>!x.core);
+  h += '<div class="str-chips">'+STRENGTH_EX.filter(x=>x.core).map(x=>'<button class="chip '+(STR.ex===x.id?'on':'')+'" data-strex="'+x.id+'">'+esc(x.name)+'</button>').join('')+'</div>'
+    + '<select class="str-more" data-strmore aria-label="'+esc(t('str_more'))+'"><option value="">'+esc(t('str_more'))+'</option>'
+    + more.map(x=>'<option value="'+esc(x.id)+'"'+(STR.ex===x.id?' selected':'')+'>'+esc(x.name)+'</option>').join('')
+    + '<option value="__custom">'+esc(t('str_addCustom'))+'</option></select>';
+  if(STR.customOpen) h += '<div class="str-inrow" style="margin-top:8px"><input type="text" maxlength="40" enterkeyhint="done" data-strcustom placeholder="'+esc(t('str_customPh'))+'">'
+    + '<button class="btn primary" data-strcustomadd>'+esc(t('str_add'))+'</button></div>';
+  h += '<div class="str-exname">'+esc(strExName(STR.ex))+(STR.editingId ? ' <span class="badge purple tierb">'+esc(t('str_editing'))+'</span>' : '')+'</div>'
+    + '<div class="sub">'+esc(last ? t('str_last', strCompactSets(last.sets, u), strDateShort(last.date)) : t('str_first'))+'</div>';
+  h += '<div class="str-row str-hd"><span>#</span><span>'+u+'</span><span>'+esc(t('str_reps'))+'</span><span></span><span></span></div>';
+  STR.rows.forEach((r,i)=>{
+    h += '<div class="str-row"><span class="str-n">'+(i+1)+'</span>'
+      + '<input type="number" inputmode="decimal" step="any" min="0" enterkeyhint="next" data-strw="'+i+'" value="'+esc(r.w)+'" placeholder="'+u+'" aria-label="'+esc(t('str_setW', i+1))+'">'
+      + '<input type="number" inputmode="numeric" step="1" min="1" enterkeyhint="next" data-strr="'+i+'" value="'+esc(r.r)+'" placeholder="'+esc(t('str_reps'))+'" aria-label="'+esc(t('str_setR', i+1))+'">'
+      + '<span class="str-e1" data-stre="'+i+'">'+strE1Cell(r.kg, r.reps)+'</span>'
+      + '<button class="str-x" data-strdel="'+i+'" aria-label="'+esc(t('str_rmSet', i+1))+'">×</button></div>';
+  });
+  h += '<button class="btn str-addset" data-straddset>'+esc(t('str_addSet'))+'</button>'
+    + '<div class="str-save"><button class="btn primary" data-strsave>'+esc(t(STR.editingId ? 'str_saveEdit' : 'str_save'))+'</button>'
+    + (STR.editingId ? '<button class="btn" data-strcancel>'+esc(t('str_cancel'))+'</button>' : '')+'</div></div>';
+  const list = (d && d.lifts) || [];
+  h += '<div class="card mt"><h3>'+esc(S.date===todayStr() ? t('str_todays') : t('str_dayList', strDateShort(S.date)))+'</h3>';
+  if(!list.length) h += '<div class="sub mt">'+esc(t('str_none'))+'</div>';
+  list.forEach(s=>{
+    h += '<div class="list-item str-sess"><div style="min-width:0"><b>'+esc(strExName(s.ex))+'</b><div class="sub">'+esc(strCompactSets(s.sets, u))+'</div></div>'
+      + '<div class="str-acts"><button class="btn" data-stredit="'+esc(s.id)+'">'+esc(t('str_edit'))+'</button><button class="btn" data-strrm="'+esc(s.id)+'">'+esc(t('str_delete'))+'</button></div></div>';
+  });
+  return h + '</div></div>';
+}
+function strSave(){
+  const sets = STR.rows.filter(r=>r.kg>0 && isFinite(r.kg) && Number.isInteger(r.reps) && r.reps>=1).map(r=>({ kg:r.kg, reps:r.reps }));
+  if(!sets.length){ toast(t('str_needSet')); return; }
+  const d = ensureDay(S.date), list = (d.lifts||[]).slice();
+  const at = STR.editingId ? list.findIndex(x=>x.id===STR.editingId) : -1;
+  let sess;
+  if(at>=0){ sess = Object.assign({}, list[at], { ex:STR.ex, sets }); list[at] = sess; }
+  else { sess = { id:strNewId(), ts:Date.now(), ex:STR.ex, sets }; list.push(sess); }
+  d.lifts = list;
+  touchDay(S.date);                  // never saveDay: a side-feature write must not confirm the day
+  STR.editingId = null; STR.dirty = false; STR.rows = strRowsFrom(sess);
+  toast(t('str_saved')); render();
+}
+// Called first from the document click handler.
+function strengthClick(e){
+  const el = e.target.closest && e.target.closest('[data-strunit],[data-strex],[data-straddset],[data-strdel],[data-strsave],[data-strcancel],[data-stredit],[data-strrm],[data-strbwsave],[data-strcustomadd]');
+  if(!el) return false;
+  const ds = el.dataset;
+  if(ds.strunit!=null){
+    if(ds.strunit!==liftUnit()){
+      S.settings.liftUnit = ds.strunit;       // display only: stored kg never change
+      (STR.rows||[]).forEach(r=>{ if(r.kg!=null) r.w = fmtLift(r.kg); });
+      persist(); pushSettings();
+    }
+    render(); return true;
+  }
+  if(ds.strex!=null){ if(ds.strex!==STR.ex || STR.editingId) strSeed(ds.strex); STR.customOpen = false; render(); return true; }
+  if(ds.straddset!=null){ const l = STR.rows[STR.rows.length-1]; STR.rows.push(l ? Object.assign({}, l) : strEmptyRow()); STR.dirty = true; render(); return true; }
+  if(ds.strdel!=null){ STR.rows.splice(+ds.strdel, 1); if(!STR.rows.length) STR.rows = [strEmptyRow()]; STR.dirty = true; render(); return true; }
+  if(ds.strsave!=null){ strSave(); return true; }
+  if(ds.strcancel!=null){ strSeed(STR.ex); render(); return true; }
+  if(ds.stredit!=null){
+    const s = ((S.days[S.date]||{}).lifts||[]).find(x=>x.id===ds.stredit);
+    if(s){ STR.ex = s.ex; STR.editingId = s.id; STR.dirty = false; STR.customOpen = false; STR.rows = strRowsFrom(s); render(); window.scrollTo(0, 0); }
+    return true;
+  }
+  if(ds.strrm!=null){
+    const d = S.days[S.date]; if(!d || !d.lifts) return true;
+    if(!confirm(t('str_delConfirm'))) return true;
+    d.lifts = d.lifts.filter(x=>x.id!==ds.strrm);
+    if(STR.editingId===ds.strrm) strSeed(STR.ex);
+    touchDay(S.date); render(); return true;
+  }
+  if(ds.strbwsave!=null){
+    const inp = document.querySelector('[data-strbw]'), v = parseFloat(inp && inp.value);
+    if(!(isFinite(v) && v>0)){ toast(t('str_bwBad')); return true; }
+    const d = ensureDay(S.date); d.weightKg = toKg(v);
+    touchDay(S.date);                 // same write path as Fuel's weight field
+    toast(t('str_saved')); render(); return true;
+  }
+  if(ds.strcustomadd!=null){
+    const inp = document.querySelector('[data-strcustom]'), nm = ((inp && inp.value)||'').trim().slice(0,40);
+    if(!nm) return true;
+    const hit = strExList().find(x=>x.name.toLowerCase()===nm.toLowerCase());
+    let id = hit && hit.id;
+    if(!id){ id = 'c_'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+      S.settings.liftCustom = (S.settings.liftCustom||[]).concat([{ id, name:nm }]); persist(); pushSettings(); }
+    STR.customOpen = false; strSeed(id); render(); return true;
+  }
+  return false;
+}
+function strengthInput(e){
+  const el = e.target, ds = el.dataset || {};
+  if(ds.strw!=null || ds.strr!=null){
+    const i = +(ds.strw!=null ? ds.strw : ds.strr), r = STR.rows && STR.rows[i];
+    if(!r) return false;
+    if(ds.strw!=null){ r.w = el.value; const v = parseFloat(el.value); r.kg = (isFinite(v) && v>0) ? toKg(v) : null; }
+    else { r.r = el.value; const n = parseInt(el.value, 10); r.reps = (isFinite(n) && n>=1) ? n : null; }
+    STR.dirty = true;
+    const cell = document.querySelector('[data-stre="'+i+'"]');
+    if(cell) cell.innerHTML = strE1Cell(r.kg, r.reps);
+    return true;
+  }
+  if(ds.strmore!=null){
+    const v = el.value;
+    if(v==='__custom'){ STR.customOpen = true; render(); const c = document.querySelector('[data-strcustom]'); if(c) c.focus(); }
+    else if(v){ STR.customOpen = false; strSeed(v); render(); }
+    return true;
+  }
+  return false;
+}
+document.addEventListener('input', strengthInput);
+
 // ---------- shell render ----------
 function navHtml(){
-  return PAGES.map(([id,label,ic])=>'<button class="nav-item '+(S.page===id?'active':'')+'" data-page="'+id+'">'+ICONS[ic]+' '+label+'</button>').join('');
+  return PAGES.map(([id,label,ic])=>'<button class="nav-item '+(S.page===id||(S.page==='strength'&&id==='perf')?'active':'')+'" data-page="'+id+'">'+ICONS[ic]+' '+label+'</button>').join('');
 }
 function render(){
   document.getElementById('sideNav').innerHTML = navHtml();
@@ -4870,7 +5237,7 @@ function render(){
   sb.className = 'nav-item'+(S.page==='setup'?' active':''); sb.innerHTML = ICONS.setup+' Setup';
   const tt = document.getElementById('themeToggle');
   tt.className='nav-item'; tt.innerHTML = (S.settings.theme==='dark'?ICONS.sun+' Light mode':ICONS.moon+' Dark mode');
-  document.getElementById('bottomNav').innerHTML = PAGES.concat([['setup','Setup','setup']]).map(([id,label,ic])=>'<button data-page="'+id+'" class="'+(S.page===id?'active':'')+'">'+ICONS[ic]+'<span>'+label+'</span></button>').join('');
+  document.getElementById('bottomNav').innerHTML = PAGES.concat([['setup','Setup','setup']]).map(([id,label,ic])=>'<button data-page="'+id+'" class="'+(S.page===id||(S.page==='strength'&&id==='perf')?'active':'')+'">'+ICONS[ic]+'<span>'+label+'</span></button>').join('');
   destroyCharts();
   if(bodyPlayTimer){ clearInterval(bodyPlayTimer); bodyPlayTimer=null; }
   const m = document.getElementById('main');
@@ -4880,6 +5247,7 @@ function render(){
   else if(S.page==='body'){ m.innerHTML=renderBody(); bodyCharts(); bodyMapMount(); }
   else if(S.page==='reports'){ m.innerHTML=renderReports(); reportCharts(); }
   else if(S.page==='circle'){ m.innerHTML=renderCircle(); }
+  else if(S.page==='strength'){ m.innerHTML=renderStrength(); }
   else { m.innerHTML=renderSetup(); }
 }
 function applyTheme(){
@@ -4889,6 +5257,7 @@ function applyTheme(){
 // ---------- events ----------
 document.addEventListener('click', e=>{
   if(circlesClick(e)) return;
+  if(strengthClick(e)) return;
   const pg = e.target.closest('[data-page]');
   if(pg){ S.page=pg.dataset.page; render(); return; }
   const rng = e.target.closest('[data-range]');
