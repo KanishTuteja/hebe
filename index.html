@@ -1338,7 +1338,8 @@ en:{
  ci_joinBody:"Its members will see your circle card: band, consistency, movement, a practice line and where your data comes from. Never your days, food, weight or HEBE age. Your score stays hidden unless you turn it on.",
  ci_join:"Join", ci_notNow:"Not now", ci_joined:"You joined {0}", ci_created:"Circle created — send the invite link",
  ci_inviteSignin:"You’ve been invited to a HEBE circle. Circles need a Google sign-in, because comparing needs a second person. Everything else in HEBE works without one.",
- ci_signInJoin:"Sign in with Google", ci_needConfig:"Sign-in isn’t set up on this device yet."
+ ci_signInJoin:"Sign in with Google", ci_needConfig:"Sign-in isn’t set up on this device yet.",
+ ci_wrongProject:"This device syncs to its own Firebase project, and circles run on HEBE’s. Open Setup and tap “Move sync to HEBE’s own project”, then open the invite link again."
 },
 fr:{
  nutrition:"Nutrition", logFood:"Enregistrer un aliment",
@@ -1451,7 +1452,8 @@ fr:{
  ci_joinBody:"Ses membres verront ta carte de cercle : bande, régularité, progression, une ligne sur tes habitudes et l’origine de tes données. Jamais tes jours, ton alimentation, ton poids ni ton âge HEBE. Ton score reste caché sauf si tu l’actives.",
  ci_join:"Rejoindre", ci_notNow:"Pas maintenant", ci_joined:"Tu as rejoint {0}", ci_created:"Cercle créé — envoie le lien d’invitation",
  ci_inviteSignin:"Tu as été invité·e dans un cercle HEBE. Les cercles demandent une connexion Google, parce que comparer demande une deuxième personne. Tout le reste de HEBE fonctionne sans.",
- ci_signInJoin:"Se connecter avec Google", ci_needConfig:"La connexion n’est pas encore configurée sur cet appareil."
+ ci_signInJoin:"Se connecter avec Google", ci_needConfig:"La connexion n’est pas encore configurée sur cet appareil.",
+ ci_wrongProject:"Cet appareil se synchronise avec son propre projet Firebase, et les cercles fonctionnent sur celui de HEBE. Ouvre les Réglages, touche « Move sync to HEBE’s own project », puis rouvre le lien d’invitation."
 }};
 
 // First visit follows the browser; after that the user's choice wins.
@@ -2192,7 +2194,14 @@ function attachStory(chart, dates){
 // "Sign in with Google" - nothing to paste. A web config is an identifier, not a
 // secret: firestore.rules is what protects the data. A config pasted in Setup
 // still wins on that device. null = the pre-circles behaviour (paste required).
-const HEBE_FB_CONFIG = null;
+const HEBE_FB_CONFIG = {
+  apiKey: "AIzaSyAUmY_3OjGuuMob3oj_CKRrv9iqyE7OTT8",
+  authDomain: "hebe-ebf13.firebaseapp.com",
+  projectId: "hebe-ebf13",
+  storageBucket: "hebe-ebf13.firebasestorage.app",
+  messagingSenderId: "553911214259",
+  appId: "1:553911214259:web:9cb4ee3734d80921f050c6"
+};   // no measurementId: HEBE never loads Analytics
 // Local testing only: the Firebase emulators, switched on per browser with
 // localStorage.hebe_emu = '1'. Inert anywhere but localhost.
 function fbEmulator(){
@@ -2205,6 +2214,33 @@ function fbEmulator(){
 function fbAutoInit(){
   if((S.settings.fbConfig||'').trim()) return true;
   try{ return localStorage.getItem('hebe_fb_on')==='1'; }catch(e){ return false; }
+}
+// The config pasted in Setup, if any, parsed on its own - so Setup can tell a
+// device synced to its own project apart from one on HEBE's.
+function fbSavedConfig(){
+  const raw=(S.settings.fbConfig||'').trim(); if(!raw) return null;
+  const saved = S.settings.fbConfig; S.settings.fbConfig = raw;
+  try{ return parseFbConfig(); } finally { S.settings.fbConfig = saved; }
+}
+function fbSavedElsewhere(){
+  const c = fbSavedConfig();
+  return !!(c && c.projectId && c.projectId !== HEBE_FB_CONFIG.projectId);
+}
+// One-time, visible, never automatic. Clears this device's pasted config so the
+// next sign-in lands on HEBE's project; pullCloud then uploads this device's
+// days there. Nothing is read from or deleted in the old project, and the old
+// config is kept on this device (hebe_fbconfig_prev) so it can be pasted back.
+function fbMoveToHebe(){
+  const c = fbSavedConfig(); if(!c) return;
+  if(!confirm('Move this device\'s sync from "'+c.projectId+'" to HEBE\'s own project?\n\n'
+    + '- You sign in with Google again, and the days on this device are uploaded to HEBE\'s project.\n'
+    + '- Nothing is deleted from "'+c.projectId+'".\n'
+    + '- Your old config is kept on this device, so you can paste it back.\n\n'
+    + 'Do this on each device you sync.')) return;
+  try{ localStorage.setItem('hebe_fbconfig_prev', S.settings.fbConfig); localStorage.removeItem('hebe_fb_on'); }catch(e){}
+  S.settings.fbConfig = ''; persist();
+  const go = ()=> location.reload();
+  if(S.fb.app) firebase.auth().signOut().then(go, go); else go();
 }
 function parseFbConfig(){
   if(fbEmulator()) return { apiKey:'demo-key', authDomain:'localhost', projectId:'demo-hebe' };
@@ -2314,7 +2350,13 @@ function cloudPush(date){
    users/{uid}/days - a card is built locally and only the card is written. ------ */
 const CIRCLE_MAX = 12, CIRCLE_MINE_MAX = 10, SEASON0_DAYS = 28;
 const CIRCLES = { ids:null, meta:{}, board:{}, open:null, pendingJoin:null };
-function circlesOn(){ return !!(S.fb.user && S.fb.db); }
+// Circles exist only on HEBE's project (or the local emulator), the only place
+// firestore.rules is deployed. A device synced to its own project sees none.
+function circlesProjectOk(){
+  const p = S.fb.app && S.fb.app.options && S.fb.app.options.projectId;
+  return p === HEBE_FB_CONFIG.projectId || (fbEmulator() && p === 'demo-hebe');
+}
+function circlesOn(){ return !!(S.fb.user && S.fb.db && circlesProjectOk()); }
 function circleRef(cid){ return S.fb.db.collection('circles').doc(cid); }
 // 20 characters from a 32-symbol alphabet (no l/o/0/1): 100 bits, no modulo bias.
 function newInviteCode(){
@@ -4347,12 +4389,20 @@ function renderSetup(){
 
   const fbReady = !!parseFbConfig();
   h += '<div class="card mt fade"><h3>Firebase sync '+(S.fb.user?'<span class="badge teal" style="margin-left:6px">connected · '+esc(S.fb.user.email||'')+'</span>':'<span class="badge gray" style="margin-left:6px">off — local only</span>')+'</h3>'
-    + '<div class="sub mt">Create a Firebase project (free) → enable Google sign-in + Firestore → paste the web config here. Then HEBE syncs PC + phone.</div>'
-    + '<textarea id="setFb" rows="4" class="mt" placeholder=\'{ "apiKey": "...", "authDomain": "...", "projectId": "..." }\'>'+esc(s.fbConfig)+'</textarea>'
+    + '<div class="sub mt">Sign in with Google to sync your phone and computer, and to use circles. Your days stay readable by you alone.</div>'
+    + (fbSavedElsewhere()
+        ? '<div class="sub mt" style="line-height:1.55;padding:9px 11px;border-radius:9px;background:var(--amber-bg);border:1px solid var(--line2)">'
+          + 'This device syncs to your own Firebase project <b>'+esc(fbSavedConfig().projectId)+'</b>. Circles run on HEBE\'s own project. '
+          + 'Moving is one tap: you sign in again and this device\'s days are uploaded there. Nothing is deleted from '+esc(fbSavedConfig().projectId)+'.'
+          + '<div style="margin-top:8px"><button class="btn" id="fbMoveHebe">Move sync to HEBE\'s own project</button></div></div>'
+        : '')
+    + '<details class="sub mt" style="font-size:11.5px"><summary style="cursor:pointer">Advanced: use your own Firebase project instead</summary>'
+    + '<div class="mt">Paste a web config to sync this device to a project you run. Circles are not available there.</div>'
+    + '<textarea id="setFb" rows="4" class="mt" placeholder=\'{ "apiKey": "...", "authDomain": "...", "projectId": "..." }\'>'+esc(s.fbConfig)+'</textarea></details>'
     + '<div style="display:flex;gap:8px;margin-top:10px">'
     + (S.fb.user? '<button class="btn" id="fbOut">Sign out</button>' : '<button class="btn primary" id="fbIn"'+(fbReady?'':' disabled')+'>Sign in with Google</button>')
     + '</div>'
-    + '<details class="sub mt" style="font-size:11.5px"><summary style="cursor:pointer">Firestore rules (copy into console)</summary><pre style="background:var(--card2);padding:8px;border-radius:8px;overflow-x:auto;font-size:10.5px">rules_version = \'2\';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    match /users/{uid}/{document=**} {\n      allow read, write: if request.auth != null &amp;&amp; request.auth.uid == uid;\n    }\n  }\n}</pre></details></div>';
+    + (!(s.fbConfig||'').trim() ? '' : '<details class="sub mt" style="font-size:11.5px"><summary style="cursor:pointer">Firestore rules for your own project (copy into its console)</summary><pre style="background:var(--card2);padding:8px;border-radius:8px;overflow-x:auto;font-size:10.5px">rules_version = \'2\';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    match /users/{uid}/{document=**} {\n      allow read, write: if request.auth != null &amp;&amp; request.auth.uid == uid;\n    }\n  }\n}</pre></details>') + '</div>';
 
   h += renderCirclesSetup();
 
@@ -4579,6 +4629,12 @@ async function ciJoinPrompt(){
   const btns = (goId, goLabel, disabled)=> '<div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end">'
     + '<button class="btn" id="ciNotNow">'+esc(t('ci_notNow'))+'</button>'
     + '<button class="btn primary" id="'+goId+'"'+(disabled?' disabled':'')+'>'+esc(goLabel)+'</button></div>';
+  if(S.fb.user && !circlesProjectOk()){                     // signed in, but to another project
+    showModal('<h3 style="margin:0">'+esc(t('ci_title'))+'</h3>'
+      + '<div class="sub mt" style="line-height:1.55">'+esc(t('ci_wrongProject'))+'</div>'
+      + '<div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn" id="ciClose">'+esc(t('ci_close'))+'</button></div>');
+    return;
+  }
   if(!circlesOn()){
     const can = !!parseFbConfig();
     showModal('<h3 style="margin:0">'+esc(t('ci_title'))+'</h3>'
@@ -4797,6 +4853,7 @@ document.addEventListener('click', e=>{
       break; }
     case 'genReport': genWeekly(); break;
     case 'fbIn': signInGoogle(); break;
+    case 'fbMoveHebe': fbMoveToHebe(); break;
     case 'fbOut': if(S.fb.app) firebase.auth().signOut(); break;
     case 'exportBtn': doExport(); break;
     case 'wipeBtn': doWipe(); break;
