@@ -1383,6 +1383,7 @@ en:{
  ci_inviteSignin:"You’ve been invited to a HEBE circle. Circles need a Google sign-in, because comparing needs a second person. Everything else in HEBE works without one.",
  ci_signInJoin:"Sign in with Google and join", ci_needConfig:"Sign-in isn’t set up on this device yet.",
  ci_errFull:"{0} already has 12 people, the most a circle can hold.", ci_already:"You’re already in {0}",
+ ci_bandStarting:"getting started",
  ci_wrongProject:"This device syncs to its own Firebase project, and circles run on HEBE’s. Open Setup and tap “Move sync to HEBE’s own project”, then open the invite link again.",
  ci_homeLabel:"Circle",
  dl_adv:"Advanced: delete my account data", dl_advNote:"Deletes what HEBE holds for you in the cloud. You choose whether this device is cleared too.",
@@ -1509,6 +1510,7 @@ fr:{
  ci_inviteSignin:"Tu as été invité·e dans un cercle HEBE. Les cercles demandent une connexion Google, parce que comparer demande une deuxième personne. Tout le reste de HEBE fonctionne sans.",
  ci_signInJoin:"Se connecter avec Google et rejoindre", ci_needConfig:"La connexion n’est pas encore configurée sur cet appareil.",
  ci_errFull:"{0} compte déjà 12 personnes, le maximum pour un cercle.", ci_already:"Tu fais déjà partie de {0}",
+ ci_bandStarting:"en démarrage",
  ci_wrongProject:"Cet appareil se synchronise avec son propre projet Firebase, et les cercles fonctionnent sur celui de HEBE. Ouvre les Réglages, touche « Move sync to HEBE’s own project », puis rouvre le lien d’invitation.",
  ci_homeLabel:"Cercle",
  dl_adv:"Avancé : supprimer les données de mon compte", dl_advNote:"Supprime ce que HEBE garde pour toi dans le cloud. Tu choisis si cet appareil est vidé aussi.",
@@ -3365,7 +3367,9 @@ function seasonCard(start, end, showScore){
   const sc = scoreReady() ? scoreAt(todayStr()) : null;
   const s = sc && sc.score!=null ? sc.score : null;
   return {
-    band: s!=null ? scoreBandRow(s).k : 'forming',
+    // Under SEASON_RANK_MIN confirmed days a card never carries a lever verdict:
+    // the band says "getting started", like the board row does.
+    band: dates.length < SEASON_RANK_MIN ? 'starting' : (s!=null ? scoreBandRow(s).k : 'forming'),
     score: (showScore && s!=null) ? Math.round(s*10)/10 : null,
     consistency: c.rate==null ? null : Math.round(c.rate*1000)/1000,
     onTargetDays: c.on, leverDays: c.n, confirmedDays: dates.length,
@@ -4551,6 +4555,9 @@ function ciPractice(s){
 }
 function ciNum(v){ const s = Math.abs(v).toFixed(1); return uiLang()==='fr' ? s.replace('.', ',') : s; }
 function ciBand(k){ return (typeof k==='string' && k.indexOf('sb_')===0) ? t(k) : t('ci_forming'); }
+// The band as shown on a card. Enforced on read as well as on write, so a card
+// published before this rule (or by an older client) still reads "getting started".
+function ciBandOf(cd){ return (!cd || (cd.confirmedDays||0) < SEASON_RANK_MIN || cd.band==='starting') ? t('ci_bandStarting') : ciBand(cd.band); }
 function ciProv(k){ return k==='sensor' ? t('pv_sensor') : k==='mixed' ? t('ci_pvMixed') : t('pv_self'); }
 function ciMove(v){ return (v>0?'+':v<0?'−':'')+ciNum(v); }
 function ciSeasonState(c){
@@ -4640,7 +4647,7 @@ function ciMemberModal(uid){
   let h = '<h3 style="margin:0 0 2px;overflow-wrap:anywhere">'+esc(r.member.displayName)+(r.me?' <span class="sub">· '+esc(t('ci_you'))+'</span>':'')+'</h3>';
   if(!cd) h += '<div class="sub mt">'+esc(t('ci_noCard'))+'</div>';
   else {
-    h += '<div class="sub">'+esc(ciBand(cd.band))+'</div>';
+    h += '<div class="sub">'+esc(ciBandOf(cd))+'</div>';
     if(cd.score!=null) h += '<div style="font-size:24px;font-weight:700;margin-top:10px">'+Math.round(cd.score)+' <span class="sub">/ 100</span></div>'
       + '<div class="sub" style="font-size:11px">'+esc(t('ci_scoreShared'))+'</div>';
     h += '<div class="list-item mt"><span>'+esc(t('ci_colCons'))+'</span><b>'+(cd.consistency!=null?Math.round(cd.consistency*100)+'%':'–')+'</b></div>'
