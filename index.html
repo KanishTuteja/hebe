@@ -1373,7 +1373,7 @@ en:{
  ci_leaveConfirm:"Leave {0}? You’ll disappear from its board straight away.", ci_left:"You left {0}",
  ci_forming:"score still forming", ci_scoreShared:"shared with this circle only",
  ci_consLine:"{0} of {1} lever-days on target", ci_confirmed:"{0} confirmed days this season",
- ci_practice:"trains {0}×/wk · sleeps {1} h", ci_pvMixed:"mixed sources",
+ ci_practice:"trains {0}×/wk · sleeps {1} h", ci_practiceTrain:"trains {0}×/wk", ci_pvMixed:"mixed sources",
  ci_showScore:"Show my score to this circle", ci_showNote:"Off by default. This circle only — your other circles stay separate.",
  ci_scoreOn:"Your score is now visible to this circle", ci_scoreOff:"Your score is hidden from this circle",
  ci_displayName:"Your name in this circle", ci_save:"Save", ci_saved:"Saved",
@@ -1501,7 +1501,7 @@ fr:{
  ci_leaveConfirm:"Quitter {0} ? Tu disparais tout de suite de son classement.", ci_left:"Tu as quitté {0}",
  ci_forming:"score encore en formation", ci_scoreShared:"partagé avec ce cercle seulement",
  ci_consLine:"{0} jours-leviers sur {1} dans la cible", ci_confirmed:"{0} jours confirmés cette saison",
- ci_practice:"s’entraîne {0}×/sem · dort {1} h", ci_pvMixed:"sources mixtes",
+ ci_practice:"s’entraîne {0}×/sem · dort {1} h", ci_practiceTrain:"s’entraîne {0}×/sem", ci_pvMixed:"sources mixtes",
  ci_showScore:"Montrer mon score à ce cercle", ci_showNote:"Désactivé par défaut. Ce cercle seulement — tes autres cercles restent séparés.",
  ci_scoreOn:"Ton score est maintenant visible dans ce cercle", ci_scoreOff:"Ton score est caché dans ce cercle",
  ci_displayName:"Ton nom dans ce cercle", ci_save:"Enregistrer", ci_saved:"Enregistré",
@@ -2530,7 +2530,7 @@ async function publishCard(cid){
   const [cs, ms] = await Promise.all([ref.get(), ref.collection('members').doc(uid).get()]);
   if(!cs.exists || !ms.exists) return null;
   const c = Object.assign({ id:cid }, cs.data()); CIRCLES.meta[cid] = c;
-  const card = seasonCard(c.seasonStart, c.seasonEnd, !!ms.data().showScore);
+  const card = seasonCard(c.seasonStart, c.seasonEnd, !!ms.data().showScore, seasonSince(c, ms.data().joinedAt));
   await ref.collection('cards').doc(uid).set(card);
   return card;
 }
@@ -2552,9 +2552,10 @@ async function publishAllCards(){
 async function setShowScore(cid, on){
   const db = S.fb.db, uid = S.fb.user.uid, ref = circleRef(cid);
   const c = CIRCLES.meta[cid] || Object.assign({ id:cid }, (await ref.get()).data());
+  const me = await ref.collection('members').doc(uid).get();
   const b = db.batch();
   b.update(ref.collection('members').doc(uid), { showScore: !!on });
-  b.set(ref.collection('cards').doc(uid), seasonCard(c.seasonStart, c.seasonEnd, !!on));
+  b.set(ref.collection('cards').doc(uid), seasonCard(c.seasonStart, c.seasonEnd, !!on, seasonSince(c, me.exists ? me.data().joinedAt : null)));
   await b.commit();
 }
 async function setCircleDisplayName(cid, name){
@@ -3333,7 +3334,12 @@ function seasonDays(start, end){
 // On-target lines from the same published thresholds the levers use (§4).
 // true / false, or null when the day holds no input for that lever. Resting HR
 // is left out: it would rank genetics and fitness history, not this month.
-function leverOnTarget(name, k){
+// `since` = the day this person's season began: max(seasonStart, the day they joined).
+function seasonSince(c, joinedAt){
+  const j = joinedAt ? dstr(new Date(joinedAt)) : null;
+  return (j && j > c.seasonStart) ? j : c.seasonStart;
+}
+function leverOnTarget(name, k, since){
   const d = S.days[k], m = (d && d.metrics) || {};
   switch(name){
     case 'Sleep': return isNum(m.sleepH) ? (m.sleepH>=7 && m.sleepH<=9) : null;
@@ -3342,6 +3348,9 @@ function leverOnTarget(name, k){
       return ((m.rideH||0) + (m.workoutMin||0)/60) >= 0.7;
     case 'Strength': {
       if(typeof m.workoutDone!=='boolean') return null;
+      // A trailing-7-day rule cannot judge a week that has not happened yet: until the
+      // person has 7 calendar days in the season, Strength leaves the denominator.
+      if(since && dayGap(since, k) < 6) return null;
       // WHO >=2x/wk: on target when the trailing 7 days, this one included, hold 2+ lifting days
       let lifts = 0;
       for(let i=0;i<7;i++){
@@ -3360,11 +3369,11 @@ function leverOnTarget(name, k){
   }
   return null;
 }
-function seasonConsistency(dates){
+function seasonConsistency(dates, since){
   let on = 0, n = 0; const per = {};
   SEASON_LEVERS.forEach(L=> per[L] = { on:0, n:0 });
   dates.forEach(k=> SEASON_LEVERS.forEach(L=>{
-    const r = leverOnTarget(L, k); if(r===null) return;
+    const r = leverOnTarget(L, k, since); if(r===null) return;
     n++; per[L].n++; if(r){ on++; per[L].on++; }
   }));
   return { on, n, rate: n ? on/n : null, per };
@@ -3389,15 +3398,24 @@ function isTrainingDay(m){
   m = m || {};
   return m.workoutDone===true || (isNum(m.workoutMin) && m.workoutMin > 0) || (isNum(m.rideH) && m.rideH >= 0.25);
 }
-function seasonPractice(dates){
+function seasonPractice(dates, since, end){
   // Under SEASON_RANK_MIN days a weekly rate is an extrapolation from almost
   // nothing ("trains 7x/wk" off one day), so the card carries no practice line.
   if(dates.length < SEASON_RANK_MIN) return '';
+  // Honest rates: training days over EVERY calendar day since this person's season
+  // began, so an unlogged day counts as a non-training day. Someone who logs only
+  // their good days no longer reads as training every day. Sleep is an average of
+  // logged nights, so it is shown only when at least half the days were logged.
+  const today = todayStr(), last = (end && today > end) ? end : today;
+  const from = since || dates[0];
+  const own = dates.filter(k=> k >= from && k <= last);
+  const elapsed = Math.max(1, dayGap(from, last) + 1);
   let train = 0, sleep = 0, sn = 0;
-  dates.forEach(k=>{ const m = S.days[k].metrics || {};
+  own.forEach(k=>{ const m = S.days[k].metrics || {};
     if(isTrainingDay(m)) train++;
     if(isNum(m.sleepH)){ sleep += m.sleepH; sn++; } });
-  return 't='+Math.round(train/dates.length*7)+';s='+(sn ? (sleep/sn).toFixed(1) : '')+';n='+dates.length;
+  const showSleep = sn > 0 && own.length >= elapsed/2;
+  return 't='+Math.round(train/elapsed*7)+(showSleep ? ';s='+(sleep/sn).toFixed(1) : '')+';n='+own.length;
 }
 // d = the owner's latest confirmed date, so readers can tell a card that stopped
 // updating. Older readers ignore unknown keys in this code.
@@ -3407,9 +3425,9 @@ function practiceWithLastDay(line){
 }
 // The whole card, from local values. The score is included only when the owner
 // opted in for this circle - the Firestore rules refuse it otherwise, too.
-function seasonCard(start, end, showScore){
+function seasonCard(start, end, showScore, since){
   const dates = seasonDays(start, end);
-  const c = seasonConsistency(dates), mv = seasonMovement(dates);
+  const c = seasonConsistency(dates, since || start), mv = seasonMovement(dates);
   const sc = scoreReady() ? scoreAt(todayStr()) : null;
   const s = sc && sc.score!=null ? sc.score : null;
   return {
@@ -3420,7 +3438,7 @@ function seasonCard(start, end, showScore){
     consistency: c.rate==null ? null : Math.round(c.rate*1000)/1000,
     onTargetDays: c.on, leverDays: c.n, confirmedDays: dates.length,
     movement: mv.movement, movementFrom: mv.movement!=null ? mv.from : null,
-    practiceLine: practiceWithLastDay(seasonPractice(dates)),
+    practiceLine: practiceWithLastDay(seasonPractice(dates, since || start, end)),
     provenance: scoreProvenance(todayStr()).key,
     updatedAt: Date.now()
   };
@@ -4597,7 +4615,8 @@ function ciPractice(s){
   const o = {}; String(s||'').split(';').forEach(p=>{ const kv = p.split('='); if(kv[0]) o[kv[0]] = kv[1]; });
   const tw = parseInt(o.t,10), sl = parseFloat(o.s);
   if(!isFinite(tw) && !isFinite(sl)) return '';
-  return t('ci_practice', isFinite(tw)?tw:'–', isFinite(sl)?ciNum(sl):'–');
+  if(!isFinite(sl)) return t('ci_practiceTrain', tw);        // sleep withheld: too few logged nights
+  return t('ci_practice', isFinite(tw)?tw:'–', ciNum(sl));
 }
 function ciNum(v){ const s = Math.abs(v).toFixed(1); return uiLang()==='fr' ? s.replace('.', ',') : s; }
 function ciBand(k){ return (typeof k==='string' && k.indexOf('sb_')===0) ? t(k) : t('ci_forming'); }
