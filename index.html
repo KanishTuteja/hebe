@@ -3351,11 +3351,19 @@ function seasonMovement(dates){
 }
 // Language-neutral so each reader renders it in their own language:
 // t = training days per week, s = mean sleep hours, n = days it is built on.
+// A training day, for the practice line: a lift/workout marked done, any logged
+// workout minutes, or a ride of 15 minutes or more. One rule, one place.
+function isTrainingDay(m){
+  m = m || {};
+  return m.workoutDone===true || (isNum(m.workoutMin) && m.workoutMin > 0) || (isNum(m.rideH) && m.rideH >= 0.25);
+}
 function seasonPractice(dates){
-  if(!dates.length) return '';
+  // Under SEASON_RANK_MIN days a weekly rate is an extrapolation from almost
+  // nothing ("trains 7x/wk" off one day), so the card carries no practice line.
+  if(dates.length < SEASON_RANK_MIN) return '';
   let train = 0, sleep = 0, sn = 0;
   dates.forEach(k=>{ const m = S.days[k].metrics || {};
-    if(m.workoutDone===true || (m.rideH||0) >= 0.25) train++;
+    if(isTrainingDay(m)) train++;
     if(isNum(m.sleepH)){ sleep += m.sleepH; sn++; } });
   return 't='+Math.round(train/dates.length*7)+';s='+(sn ? (sleep/sn).toFixed(1) : '')+';n='+dates.length;
 }
@@ -4654,7 +4662,8 @@ function ciMemberModal(uid){
       + '<div class="sub" style="font-size:11px">'+esc(t('ci_consLine', cd.onTargetDays, cd.leverDays))+' · '+esc(t('ci_confirmed', cd.confirmedDays))+'</div>'
       + '<div class="list-item mt"><span>'+esc(t('ci_colMove'))+'</span><b>'
       + (cd.movement!=null ? ciMove(cd.movement)+' <span class="sub">'+esc(t('ci_since', ciDate(cd.movementFrom)))+'</span>' : esc(t('ci_notYet')))+'</b></div>';
-    const pr = ciPractice(cd.practiceLine);
+    // Hidden under SEASON_RANK_MIN confirmed days on read too, for cards older clients published.
+    const pr = (cd.confirmedDays||0) < SEASON_RANK_MIN ? '' : ciPractice(cd.practiceLine);
     if(pr) h += '<div class="mt" style="font-size:13px">'+esc(pr)+'</div>';
     h += '<div class="mt"><span class="provtag '+(cd.provenance==='self-reported'?'self':'sensor')+'">'+esc(ciProv(cd.provenance))+'</span></div>';
   }
