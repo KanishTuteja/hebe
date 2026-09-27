@@ -1363,7 +1363,8 @@ en:{
  ci_colCons:"Consistency", ci_colMove:"Movement", ci_you:"you",
  ci_days:"{0} days", ci_day1:"1 day", ci_gettingStarted:"getting started · {0}",
  ci_notYet:"not yet", ci_since:"since {0}", ci_noCard:"no card yet",
- ci_legendRank:"Ranked on consistency: how often each lever was on target, counting only days confirmed within 8 days. A day nobody logged counts for nothing either way. Under 5 confirmed days: listed, not ranked.",
+ ci_legendRank:"Ranked on consistency: how often each lever was on target, counting only days confirmed within 8 days; a day nobody logged counts for nothing either way. You’re ranked once you have at least 5 confirmed days and at least half the season’s days so far, and anyone who hasn’t logged for over a week is listed as not logging right now.",
+ ci_notLogging:"not logging right now", ci_soFar:"{0} days so far", ci_steady:"holding steady",
  ci_legendMove:"Movement is the score’s change this season. It fills in once a person’s score has two weeks of history.",
  ci_legendPriv:"Nobody’s score is shown unless they chose to. Days, food, weight, notes and HEBE age never leave their owner’s account.",
  ci_invite:"Invite link", ci_refresh:"Refresh", ci_leave:"Leave circle", ci_back:"‹ Setup",
@@ -1490,7 +1491,8 @@ fr:{
  ci_colCons:"Régularité", ci_colMove:"Progression", ci_you:"toi",
  ci_days:"{0} jours", ci_day1:"1 jour", ci_gettingStarted:"en démarrage · {0}",
  ci_notYet:"pas encore", ci_since:"depuis le {0}", ci_noCard:"pas encore de carte",
- ci_legendRank:"Classement sur la régularité : combien de fois chaque levier était dans la cible, en ne comptant que les jours confirmés dans les 8 jours. Un jour non enregistré ne compte ni pour ni contre. Moins de 5 jours confirmés : listé, pas classé.",
+ ci_legendRank:"Classement sur la régularité : combien de fois chaque levier était dans la cible, en ne comptant que les jours confirmés dans les 8 jours ; un jour non enregistré ne compte ni pour ni contre. Tu es classé·e dès que tu as au moins 5 jours confirmés et au moins la moitié des jours de la saison écoulés, et quiconque n’a rien saisi depuis plus d’une semaine apparaît comme « pas de saisie en ce moment ».",
+ ci_notLogging:"pas de saisie en ce moment", ci_soFar:"{0} jours pour l’instant", ci_steady:"stable",
  ci_legendMove:"La progression, c’est l’évolution du score pendant la saison. Elle apparaît quand le score d’une personne a deux semaines d’historique.",
  ci_legendPriv:"Le score de chacun reste caché sauf s’il choisit de le montrer. Les jours, l’alimentation, le poids, les notes et l’âge HEBE ne quittent jamais le compte de leur propriétaire.",
  ci_invite:"Lien d’invitation", ci_refresh:"Actualiser", ci_leave:"Quitter le cercle", ci_back:"‹ Réglages",
@@ -2573,15 +2575,45 @@ async function loadMyCircles(){
 // Season 0 board: ranked on consistency, never on the score. Ties (same whole
 // percent) share a rank. Under SEASON_RANK_MIN confirmed days you are listed,
 // not ranked - "getting started" - because nobody should win on three days.
-function rankBoard(rows){
+// Reader-side, computed at display, so it is always current and needs no write.
+// STALE: a card whose owner's latest confirmed day is more than CI_STALE_DAYS
+// before today reads "not logging right now" and leaves the ranking; it comes
+// back by itself on their next confirmed day (which republishes the card).
+// Cards from older clients carry no d=; for those the publish time stands in -
+// a card is republished on every confirmed day, so that errs towards "current".
+const CI_STALE_DAYS = 7;
+function ciLastDay(cd){
+  if(!cd) return null;
+  const m = /(?:^|;)d=(\d{4}-\d{2}-\d{2})/.exec(cd.practiceLine||'');
+  if(m) return m[1];
+  return (cd.confirmedDays>0 && cd.updatedAt) ? dstr(new Date(cd.updatedAt)) : null;
+}
+function ciIsStale(cd){ const last = ciLastDay(cd); return !!last && dayGap(last, todayStr()) > CI_STALE_DAYS; }
+// ELIGIBILITY: ranked only with max(5, half the season's elapsed days) confirmed.
+function seasonElapsed(c){
+  const today = todayStr();
+  if(!c || !c.seasonStart || today < c.seasonStart) return 0;
+  return dayGap(c.seasonStart, (c.seasonEnd && today > c.seasonEnd) ? c.seasonEnd : today) + 1;
+}
+function ciRankMin(c){ return Math.max(SEASON_RANK_MIN, Math.ceil(seasonElapsed(c)/2)); }
+function rankBoard(rows, circle){
   const pct = r=> Math.round(r.card.consistency*100);
   const nm = r=> (r.member && r.member.displayName) || '';
-  const ranked = rows.filter(r=> r.card && r.card.confirmedDays>=SEASON_RANK_MIN && r.card.consistency!=null)
+  const need = circle ? ciRankMin(circle) : SEASON_RANK_MIN;
+  rows.forEach(r=>{
+    const cd = r.card;
+    r.status = !cd ? 'nocard'
+      : ciIsStale(cd) ? 'stale'
+      : (cd.confirmedDays >= need && cd.consistency!=null) ? 'ranked'
+      : (cd.confirmedDays < SEASON_RANK_MIN ? 'starting' : 'sofar');
+  });
+  const ranked = rows.filter(r=> r.status==='ranked')
     .sort((a,b)=> pct(b)-pct(a) || b.card.confirmedDays-a.card.confirmedDays || nm(a).localeCompare(nm(b)));
   let prev = null, rank = 0;
   ranked.forEach((r,i)=>{ if(pct(r)!==prev){ rank = i+1; prev = pct(r); } r.rank = rank; });
-  const rest = rows.filter(r=> !ranked.includes(r))
-    .sort((a,b)=> ((b.card&&b.card.confirmedDays)||0)-((a.card&&a.card.confirmedDays)||0) || nm(a).localeCompare(nm(b)));
+  const order = { sofar:0, starting:1, stale:2, nocard:3 };
+  const rest = rows.filter(r=> r.status!=='ranked')
+    .sort((a,b)=> order[a.status]-order[b.status] || ((b.card&&b.card.confirmedDays)||0)-((a.card&&a.card.confirmedDays)||0) || nm(a).localeCompare(nm(b)));
   rest.forEach(r=> r.rank = null);
   return ranked.concat(rest);
 }
@@ -2591,7 +2623,7 @@ async function loadBoard(cid){
   const c = Object.assign({ id:cid }, cs.data()); CIRCLES.meta[cid] = c;
   const byUid = {}; cards.forEach(d=> byUid[d.id] = d.data());
   const rows = []; ms.forEach(d=> rows.push({ uid:d.id, member:d.data(), card:byUid[d.id]||null, me: d.id===S.fb.user.uid }));
-  CIRCLES.board[cid] = { circle:c, rows:rankBoard(rows), at:Date.now() };
+  CIRCLES.board[cid] = { circle:c, rows:rankBoard(rows, c), at:Date.now() };
   return CIRCLES.board[cid];
 }
 function circlesAuthChanged(u){
@@ -3367,6 +3399,12 @@ function seasonPractice(dates){
     if(isNum(m.sleepH)){ sleep += m.sleepH; sn++; } });
   return 't='+Math.round(train/dates.length*7)+';s='+(sn ? (sleep/sn).toFixed(1) : '')+';n='+dates.length;
 }
+// d = the owner's latest confirmed date, so readers can tell a card that stopped
+// updating. Older readers ignore unknown keys in this code.
+function practiceWithLastDay(line){
+  const last = confirmedDates(todayStr()).pop();
+  return last ? (line ? line+';' : '')+'d='+last : line;
+}
 // The whole card, from local values. The score is included only when the owner
 // opted in for this circle - the Firestore rules refuse it otherwise, too.
 function seasonCard(start, end, showScore){
@@ -3382,7 +3420,7 @@ function seasonCard(start, end, showScore){
     consistency: c.rate==null ? null : Math.round(c.rate*1000)/1000,
     onTargetDays: c.on, leverDays: c.n, confirmedDays: dates.length,
     movement: mv.movement, movementFrom: mv.movement!=null ? mv.from : null,
-    practiceLine: seasonPractice(dates),
+    practiceLine: practiceWithLastDay(seasonPractice(dates)),
     provenance: scoreProvenance(todayStr()).key,
     updatedAt: Date.now()
   };
@@ -4568,6 +4606,8 @@ function ciBand(k){ return (typeof k==='string' && k.indexOf('sb_')===0) ? t(k) 
 function ciBandOf(cd){ return (!cd || (cd.confirmedDays||0) < SEASON_RANK_MIN || cd.band==='starting') ? t('ci_bandStarting') : ciBand(cd.band); }
 function ciProv(k){ return k==='sensor' ? t('pv_sensor') : k==='mixed' ? t('ci_pvMixed') : t('pv_self'); }
 function ciMove(v){ return (v>0?'+':v<0?'−':'')+ciNum(v); }
+// Under half a point either way is noise, not a result: "holding steady".
+function ciMoveHTML(v){ return Math.abs(v) < 0.5 ? esc(t('ci_steady')) : '<b>'+ciMove(v)+'</b>'; }
 function ciSeasonState(c){
   const today = todayStr();
   if(today < c.seasonStart) return t('ci_startsOn', ciDate(c.seasonStart));
@@ -4627,10 +4667,12 @@ function renderCircle(){
     const nm = esc(r.member.displayName)+(r.me?' <span class="sub2">· '+esc(t('ci_you'))+'</span>':'');
     let cons = '', move = '';
     if(!cd) cons = '<span class="sub2">'+esc(t('ci_noCard'))+'</span>';
-    else if(r.rank==null) cons = '<span class="sub2">'+esc(t('ci_gettingStarted', ciDays(cd.confirmedDays)))+'</span>';
+    else if(r.status==='stale') cons = '<span class="sub2">'+esc(t('ci_notLogging'))+'</span>';
+    else if(r.status==='starting') cons = '<span class="sub2">'+esc(t('ci_gettingStarted', ciDays(cd.confirmedDays)))+'</span>';
+    else if(r.status==='sofar') cons = '<span class="sub2">'+esc(t('ci_soFar', cd.confirmedDays))+'</span>';
     else cons = '<b>'+Math.round(cd.consistency*100)+'%</b><div class="sub2">'+esc(ciDays(cd.confirmedDays))+'</div>';
-    if(cd) move = cd.movement!=null
-      ? '<b>'+ciMove(cd.movement)+'</b><div class="sub2">'+esc(t('ci_since', ciDate(cd.movementFrom)))+'</div>'
+    if(cd && r.status!=='stale') move = cd.movement!=null                  // not logging: no movement number
+      ? ciMoveHTML(cd.movement)+'<div class="sub2">'+esc(t('ci_since', ciDate(cd.movementFrom)))+'</div>'
       : '<span class="sub2">'+esc(t('ci_notYet'))+'</span>';
     h += '<button class="cirow'+(r.me?' me':'')+'" data-cimember="'+esc(r.uid)+'">'
       + '<span class="cirank">'+(r.rank!=null?r.rank:'–')+'</span><span class="ciname">'+nm+'</span>'
@@ -4661,7 +4703,8 @@ function ciMemberModal(uid){
     h += '<div class="list-item mt"><span>'+esc(t('ci_colCons'))+'</span><b>'+(cd.consistency!=null?Math.round(cd.consistency*100)+'%':'–')+'</b></div>'
       + '<div class="sub" style="font-size:11px">'+esc(t('ci_consLine', cd.onTargetDays, cd.leverDays))+' · '+esc(t('ci_confirmed', cd.confirmedDays))+'</div>'
       + '<div class="list-item mt"><span>'+esc(t('ci_colMove'))+'</span><b>'
-      + (cd.movement!=null ? ciMove(cd.movement)+' <span class="sub">'+esc(t('ci_since', ciDate(cd.movementFrom)))+'</span>' : esc(t('ci_notYet')))+'</b></div>';
+      + (r.status==='stale' ? esc(t('ci_notLogging'))
+         : cd.movement!=null ? ciMoveHTML(cd.movement)+' <span class="sub">'+esc(t('ci_since', ciDate(cd.movementFrom)))+'</span>' : esc(t('ci_notYet')))+'</b></div>';
     // Hidden under SEASON_RANK_MIN confirmed days on read too, for cards older clients published.
     const pr = (cd.confirmedDays||0) < SEASON_RANK_MIN ? '' : ciPractice(cd.practiceLine);
     if(pr) h += '<div class="mt" style="font-size:13px">'+esc(pr)+'</div>';
